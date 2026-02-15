@@ -6,7 +6,7 @@ $users_file = 'users.txt';
 $messages_file = 'messages.txt';
 $bans_file = 'bans.txt';
 
-$MAIN_ADMIN = 'd0xmee_admin';
+$MAIN_ADMIN = 'd0xmee';
 $SECOND_ADMIN = 'xvii';
 
 function isAdmin($login) {
@@ -2308,7 +2308,7 @@ if (isset($_GET['get_gifs'])) {
         let gifLoadTimeout = null;
         let starsEnabled = true;
         
-        const MAIN_ADMIN = 'd0xmee_admin';
+        const MAIN_ADMIN = 'd0xmee';
         const SECOND_ADMIN = 'xvii';
         
         const body = document.getElementById('body');
@@ -2362,7 +2362,7 @@ if (isset($_GET['get_gifs'])) {
         
         function getUserBadge(login) {
             if (login === MAIN_ADMIN) {
-                return '<span class="creator-badge">👑 СОЗДАТЕЛЬ</span>';
+                return '<span class="creator-badge">👑 god</span>';
             } else if (login === SECOND_ADMIN) {
                 return '<span class="admin-badge">xvii 👑</span>';
             } else if (isAdmin(login)) {
@@ -2661,8 +2661,8 @@ if (isset($_GET['get_gifs'])) {
                             let badge = '';
                             
                             if (msg.role === 'admin') {
-                                if (msg.from === MAIN_ADMIN || msg.from === 'd0xmee_admin') {
-                                    badge = '<span class="creator-badge-small">👑 СОЗДАТЕЛЬ</span>';
+                                if (msg.from === MAIN_ADMIN || msg.from === 'd0xmee') {
+                                    badge = '<span class="creator-badge-small">👑 god</span>';
                                 } else if (msg.from === SECOND_ADMIN || msg.from === 'xvii' || msg.from === 'Королевский') {
                                     badge = '<span class="admin-badge-small">xvii 👑</span>';
                                 } else {
@@ -2778,8 +2778,8 @@ if (isset($_GET['get_gifs'])) {
                         let badge = '';
                         
                         if (msg.role === 'admin') {
-                            if (msg.from === MAIN_ADMIN || msg.from === 'd0xmee_admin') {
-                                badge = '<span class="creator-badge-small">👑 СОЗДАТЕЛЬ</span>';
+                            if (msg.from === MAIN_ADMIN || msg.from === 'd0xmee') {
+                                badge = '<span class="creator-badge-small">👑 god</span>';
                             } else if (msg.from === SECOND_ADMIN || msg.from === 'xvii' || msg.from === 'Королевский') {
                                 badge = '<span class="admin-badge-small">xvii 👑</span>';
                             } else {
