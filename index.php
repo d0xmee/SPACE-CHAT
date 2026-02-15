@@ -6,17 +6,23 @@ $users_file = 'users.txt';
 $messages_file = 'messages.txt';
 
 if (isset($_POST['register'])) {
-    $name = $_POST['name'];
-    $login = $_POST['login'];
-    $password = $_POST['password'];
+    $name = trim($_POST['name']);
+    $login = trim($_POST['login']);
+    $password = trim($_POST['password']);
+
+    $users = [];
+    if (file_exists($users_file)) {
+        $content = file_get_contents($users_file);
+        $users = explode("\n", trim($content));
+        $users = array_filter($users);
+    }
     
-    $users = file_exists($users_file) ? file($users_file, FILE_IGNORE_NEW_LINES) : [];
     $exists = false;
     
     foreach ($users as $u) {
         if (!empty($u)) {
             $parts = explode('|', $u);
-            if (count($parts) >= 2 && $parts[1] === $login) {
+            if (count($parts) >= 2 && trim($parts[1]) === $login) {
                 $exists = true;
                 break;
             }
@@ -24,7 +30,18 @@ if (isset($_POST['register'])) {
     }
     
     if (!$exists) {
-        file_put_contents($users_file, "$name|$login|$password\n", FILE_APPEND);
+        $current_content = '';
+        if (file_exists($users_file)) {
+            $current_content = file_get_contents($users_file);
+        }
+        
+        if (!empty($current_content) && substr($current_content, -1) !== "\n") {
+            file_put_contents($users_file, "\n", FILE_APPEND);
+        }
+        
+        $user_line = "$name|$login|$password\n";
+        file_put_contents($users_file, $user_line, FILE_APPEND | LOCK_EX);
+        
         echo json_encode(['success' => true]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Логин уже занят']);
@@ -33,19 +50,25 @@ if (isset($_POST['register'])) {
 }
 
 if (isset($_POST['login'])) {
-    $login = $_POST['login'];
-    $password = $_POST['password'];
+    $login = trim($_POST['login']);
+    $password = trim($_POST['password']);
     
-    $users = file_exists($users_file) ? file($users_file, FILE_IGNORE_NEW_LINES) : [];
+    $users = [];
+    if (file_exists($users_file)) {
+        $content = file_get_contents($users_file);
+        $users = explode("\n", trim($content));
+        $users = array_filter($users);
+    }
+    
     $logged = false;
     $user_name = '';
     
     foreach ($users as $u) {
         if (!empty($u)) {
             $parts = explode('|', $u);
-            if (count($parts) >= 3 && $parts[1] === $login && $parts[2] === $password) {
+            if (count($parts) >= 3 && trim($parts[1]) === $login && trim($parts[2]) === $password) {
                 $logged = true;
-                $user_name = $parts[0];
+                $user_name = trim($parts[0]);
                 break;
             }
         }
@@ -84,23 +107,26 @@ if (isset($_POST['send_message'])) {
     if (!isset($_SESSION['user'])) exit;
     
     $from = isset($_SESSION['name']) ? $_SESSION['name'] : $_SESSION['user'];
-    $message = $_POST['message'];
+    $message = trim($_POST['message']);
     $time = date('H:i:s');
     
     $new_message = "$from|$message|$time\n";
-    file_put_contents($messages_file, $new_message, FILE_APPEND);
+    file_put_contents($messages_file, $new_message, FILE_APPEND | LOCK_EX);
     
     $messages = [];
     if (file_exists($messages_file)) {
-        $lines = file($messages_file, FILE_IGNORE_NEW_LINES);
+        $content = file_get_contents($messages_file);
+        $lines = explode("\n", trim($content));
+        $lines = array_filter($lines);
+        
         foreach ($lines as $line) {
             if (!empty($line)) {
                 $parts = explode('|', $line);
                 if (count($parts) >= 3) {
                     $messages[] = [
-                        'from' => $parts[0],
-                        'message' => $parts[1],
-                        'time' => $parts[2]
+                        'from' => trim($parts[0]),
+                        'message' => trim($parts[1]),
+                        'time' => trim($parts[2])
                     ];
                 }
             }
@@ -116,15 +142,18 @@ if (isset($_GET['get_messages'])) {
     $messages = [];
     
     if (file_exists($messages_file)) {
-        $lines = file($messages_file, FILE_IGNORE_NEW_LINES);
+        $content = file_get_contents($messages_file);
+        $lines = explode("\n", trim($content));
+        $lines = array_filter($lines);
+        
         foreach ($lines as $line) {
             if (!empty($line)) {
                 $parts = explode('|', $line);
                 if (count($parts) >= 3) {
                     $messages[] = [
-                        'from' => $parts[0],
-                        'message' => $parts[1],
-                        'time' => $parts[2]
+                        'from' => trim($parts[0]),
+                        'message' => trim($parts[1]),
+                        'time' => trim($parts[2])
                     ];
                 }
             }
@@ -251,7 +280,7 @@ if (isset($_GET['get_messages'])) {
             backdrop-filter: blur(10px);
             border-radius: 30px;
             padding: 40px;
-            max-width: 400px;
+            max-width: 450px;
             width: 100%;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             animation: float 3s ease infinite, glow 3s infinite;
@@ -271,12 +300,12 @@ if (isset($_GET['get_messages'])) {
         
         .auth-tab {
             flex: 1;
-            padding: 12px;
+            padding: 15px;
             border: none;
             background: transparent;
             border-radius: 50px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             transition: all 0.3s;
             color: #666;
@@ -298,8 +327,8 @@ if (isset($_GET['get_messages'])) {
         }
         
         .auth-tab:hover::before {
-            width: 150px;
-            height: 150px;
+            width: 200px;
+            height: 200px;
         }
         
         .auth-tab:hover {
@@ -346,7 +375,7 @@ if (isset($_GET['get_messages'])) {
             display: block;
             margin-bottom: 8px;
             color: #444;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 600;
             transition: all 0.3s;
         }
@@ -358,10 +387,10 @@ if (isset($_GET['get_messages'])) {
         
         .auth-form input {
             width: 100%;
-            padding: 15px;
+            padding: 18px;
             border: 2px solid #eaeaea;
             border-radius: 15px;
-            font-size: 15px;
+            font-size: 16px;
             transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             background: rgba(255,255,255,0.9);
         }
@@ -375,12 +404,12 @@ if (isset($_GET['get_messages'])) {
         
         .auth-form button {
             width: 100%;
-            padding: 15px;
+            padding: 18px;
             background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
             border: none;
             border-radius: 15px;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -404,8 +433,8 @@ if (isset($_GET['get_messages'])) {
         }
         
         .auth-form button:hover::before {
-            width: 300px;
-            height: 300px;
+            width: 400px;
+            height: 400px;
         }
         
         .auth-form button:hover {
@@ -417,7 +446,7 @@ if (isset($_GET['get_messages'])) {
             color: #ff4444;
             text-align: center;
             margin-top: 15px;
-            font-size: 14px;
+            font-size: 16px;
             animation: shake 0.5s ease;
         }
         
@@ -425,12 +454,12 @@ if (isset($_GET['get_messages'])) {
             color: #00c851;
             text-align: center;
             margin-top: 15px;
-            font-size: 14px;
+            font-size: 16px;
             animation: popIn 0.5s ease;
         }
         
         .chat-app {
-            max-width: 900px;
+            max-width: 1000px;
             width: 100%;
             height: 85vh;
             background: rgba(255, 255, 255, 0.95);
@@ -479,7 +508,7 @@ if (isset($_GET['get_messages'])) {
         }
         
         .chat-header h2 {
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 600;
             position: relative;
             animation: pulse 2s infinite;
@@ -505,21 +534,22 @@ if (isset($_GET['get_messages'])) {
         
         .current-user {
             background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
+            padding: 12px 24px;
             border-radius: 30px;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 18px;
             animation: pulse 2s infinite;
         }
         
         .logout-btn {
-            padding: 8px 20px;
+            padding: 12px 28px;
             background: #ff4444;
             color: white;
             border: none;
             border-radius: 30px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 18px;
+            font-weight: 600;
             transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             position: relative;
             overflow: hidden;
@@ -542,12 +572,13 @@ if (isset($_GET['get_messages'])) {
         
         .message {
             max-width: 70%;
-            padding: 12px 18px;
+            padding: 15px 20px;
             border-radius: 18px;
             animation: slideIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             transition: all 0.3s;
             transform: translateZ(0);
             backface-visibility: hidden;
+            font-size: 16px;
         }
         
         .message:hover {
@@ -571,7 +602,7 @@ if (isset($_GET['get_messages'])) {
         }
         
         .message-sender {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 600;
             margin-bottom: 5px;
             opacity: 0.8;
@@ -579,7 +610,7 @@ if (isset($_GET['get_messages'])) {
         }
         
         .message-time {
-            font-size: 10px;
+            font-size: 12px;
             text-align: right;
             margin-top: 5px;
             opacity: 0.6;
@@ -596,10 +627,10 @@ if (isset($_GET['get_messages'])) {
         
         .chat-input-area input {
             flex: 1;
-            padding: 15px 25px;
+            padding: 18px 25px;
             border: 2px solid #eaeaea;
             border-radius: 30px;
-            font-size: 15px;
+            font-size: 16px;
             transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
         
@@ -611,14 +642,14 @@ if (isset($_GET['get_messages'])) {
         }
         
         .chat-input-area button {
-            width: 55px;
-            height: 55px;
+            width: 65px;
+            height: 65px;
             background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
             border: none;
             border-radius: 50%;
             cursor: pointer;
-            font-size: 22px;
+            font-size: 28px;
             transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             animation: pulse 2s infinite;
         }
@@ -629,7 +660,7 @@ if (isset($_GET['get_messages'])) {
         }
         
         ::-webkit-scrollbar {
-            width: 10px;
+            width: 12px;
         }
         
         ::-webkit-scrollbar-track {
@@ -661,6 +692,24 @@ if (isset($_GET['get_messages'])) {
             
             .message {
                 max-width: 85%;
+            }
+            
+            .auth-screen {
+                padding: 25px;
+            }
+            
+            .auth-tab {
+                padding: 12px;
+                font-size: 16px;
+            }
+            
+            .auth-form input {
+                padding: 15px;
+            }
+            
+            .auth-form button {
+                padding: 15px;
+                font-size: 16px;
             }
         }
     </style>
@@ -734,7 +783,7 @@ if (isset($_GET['get_messages'])) {
     
     <div id="chatApp" class="chat-app">
         <div class="chat-header">
-            <h2>КОСМИЧЕСКИЙ ЧАТ</h2>
+            <h2>ЧАТ</h2>
             <div class="user-info">
                 <span class="current-user" id="currentUser"></span>
                 <button class="logout-btn" id="logoutBtn">👋 Выйти</button>
