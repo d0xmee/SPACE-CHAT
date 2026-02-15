@@ -5,7 +5,6 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A mesmerizing cosmic-themed chat application with a stunning animated space interface. Connect with others in a beautifully designed interstellar communication platform.
-test: http://vdmozh8a.beget.tech/
 
 ![Space Chat Demo](preview.gif)
 
