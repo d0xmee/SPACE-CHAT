@@ -263,11 +263,7 @@ if (isset($_GET['get_messages'])) {
 }
 
 if (isset($_POST['delete_message'])) {
-    if (!isset($_SESSION['user'])) exit;
-    
-    $is_admin = isAdmin($_SESSION['user']);
-    
-    if (!$is_admin) {
+    if (!isset($_SESSION['user']) || !isAdmin($_SESSION['user'])) {
         echo json_encode(['success' => false, 'message' => 'Недостаточно прав']);
         exit;
     }
@@ -418,9 +414,9 @@ if (isset($_GET['get_gifs'])) {
             padding: 12px;
             position: relative;
             overflow-x: hidden;
-            transition: background 8s ease-in-out;
+            transition: background 1.5s ease-in-out;
             background-size: 300% 300% !important;
-            animation: floatGradient 15s ease infinite;
+            animation: floatGradient 20s ease infinite;
         }
         
         body::before {
@@ -468,50 +464,48 @@ if (isset($_GET['get_gifs'])) {
         
         @keyframes floatGradient {
             0% { background-position: 0% 0%; }
-            25% { background-position: 100% 0%; }
             50% { background-position: 100% 100%; }
-            75% { background-position: 0% 100%; }
             100% { background-position: 0% 0%; }
         }
         
         body.purple {
-            background: linear-gradient(125deg, #2d1b3a, #1a0b2e, #4a2b5a, #2d1b3a);
-            background-size: 300% 300%;
+            background: linear-gradient(135deg, #667eea, #764ba2, #9f7aea, #667eea);
+            background-size: 400% 400%;
         }
         
         body.pink {
-            background: linear-gradient(125deg, #ff9a9e, #fad0c4, #ffb6c1, #ff9a9e);
-            background-size: 300% 300%;
+            background: linear-gradient(135deg, #ff9a9e, #fad0c4, #ffb6c1, #ff9a9e);
+            background-size: 400% 400%;
         }
         
         body.gray {
-            background: linear-gradient(125deg, #2c3e50, #34495e, #4a5a6a, #2c3e50);
-            background-size: 300% 300%;
+            background: linear-gradient(135deg, #2c3e50, #3498db, #2c3e50, #34495e);
+            background-size: 400% 400%;
         }
         
         body.green {
-            background: linear-gradient(125deg, #134e5e, #71b280, #2e8b57, #134e5e);
-            background-size: 300% 300%;
+            background: linear-gradient(135deg, #134e5e, #71b280, #2ecc71, #134e5e);
+            background-size: 400% 400%;
         }
         
         body.blue {
-            background: linear-gradient(125deg, #2b5876, #4e4376, #3498db, #2b5876);
-            background-size: 300% 300%;
+            background: linear-gradient(135deg, #2b5876, #4e4376, #3498db, #2b5876);
+            background-size: 400% 400%;
         }
         
         body.orange {
-            background: linear-gradient(125deg, #ff6b6b, #feca57, #ff8c42, #ff6b6b);
-            background-size: 300% 300%;
+            background: linear-gradient(135deg, #ff6b6b, #feca57, #ff8c42, #ff6b6b);
+            background-size: 400% 400%;
         }
         
-        body.red {
-            background: linear-gradient(125deg, #cb2d3e, #ef473a, #dc143c, #cb2d3e);
-            background-size: 300% 300%;
+        body.black {
+            background: linear-gradient(135deg, #000000, #434343, #000000, #1a1a1a);
+            background-size: 400% 400%;
         }
         
         body.teal {
-            background: linear-gradient(125deg, #11998e, #38ef7d, #20b2aa, #11998e);
-            background-size: 300% 300%;
+            background: linear-gradient(135deg, #11998e, #38ef7d, #20b2aa, #11998e);
+            background-size: 400% 400%;
         }
         
         .auth-screen, .chat-app, .settings-panel, .admin-panel {
@@ -529,51 +523,67 @@ if (isset($_GET['get_gifs'])) {
             box-shadow: 0 25px 50px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.3);
             transition: all 0.5s ease;
+            transform: translateY(0);
+            animation: floatAuth 6s ease-in-out infinite;
+        }
+        
+        @keyframes floatAuth {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
         
         body.purple .auth-screen {
-            background: rgba(26, 11, 46, 0.9);
-            border: 1px solid rgba(200,150,255,0.3);
+            background: rgba(102, 126, 234, 0.2);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.2);
             color: white;
         }
         
         body.pink .auth-screen {
-            background: rgba(255, 220, 220, 0.9);
+            background: rgba(255, 220, 220, 0.2);
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(255,150,150,0.3);
+            color: white;
         }
         
         body.gray .auth-screen {
-            background: rgba(44, 62, 80, 0.9);
+            background: rgba(44, 62, 80, 0.2);
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(255,255,255,0.1);
             color: white;
         }
         
         body.green .auth-screen {
-            background: rgba(19, 78, 94, 0.9);
+            background: rgba(19, 78, 94, 0.2);
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(120,255,120,0.2);
             color: white;
         }
         
         body.blue .auth-screen {
-            background: rgba(43, 88, 118, 0.9);
+            background: rgba(43, 88, 118, 0.2);
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(100,200,255,0.3);
             color: white;
         }
         
         body.orange .auth-screen {
-            background: rgba(255, 107, 107, 0.9);
+            background: rgba(255, 107, 107, 0.2);
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(255,200,100,0.3);
             color: white;
         }
         
-        body.red .auth-screen {
-            background: rgba(203, 45, 62, 0.9);
-            border: 1px solid rgba(255,100,100,0.3);
+        body.black .auth-screen {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,215,0,0.3);
             color: white;
         }
         
         body.teal .auth-screen {
-            background: rgba(17, 153, 142, 0.9);
+            background: rgba(17, 153, 142, 0.2);
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(100,255,150,0.3);
             color: white;
         }
@@ -582,7 +592,7 @@ if (isset($_GET['get_gifs'])) {
             display: flex;
             gap: 10px;
             margin-bottom: 30px;
-            background: rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.2);
             padding: 5px;
             border-radius: 50px;
         }
@@ -597,23 +607,14 @@ if (isset($_GET['get_gifs'])) {
             font-size: 16px;
             font-weight: 600;
             transition: all 0.3s ease;
-            color: inherit;
-        }
-        
-        body.purple .auth-tab,
-        body.gray .auth-tab,
-        body.green .auth-tab,
-        body.blue .auth-tab,
-        body.orange .auth-tab,
-        body.red .auth-tab,
-        body.teal .auth-tab {
-            color: rgba(255,255,255,0.7);
+            color: rgba(255,255,255,0.8);
         }
         
         .auth-tab.active {
             background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
             transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         
         .auth-form {
@@ -622,28 +623,36 @@ if (isset($_GET['get_gifs'])) {
         
         .auth-form.active {
             display: block;
-            animation: slideIn 0.6s ease;
+            animation: slideIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
         
         @keyframes slideIn {
-            from {
+            0% {
                 opacity: 0;
-                transform: translateX(-30px);
+                transform: translateX(-50px) rotate(-5deg);
             }
-            to {
+            100% {
                 opacity: 1;
-                transform: translateX(0);
+                transform: translateX(0) rotate(0);
             }
         }
         
         .auth-form h2 {
             text-align: center;
             margin-bottom: 30px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(45deg, #667eea, #764ba2, #9f7aea);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            font-size: 28px;
+            font-size: 32px;
+            font-weight: 700;
+            animation: gradientText 3s ease infinite;
             background-size: 200% auto;
+        }
+        
+        @keyframes gradientText {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
         
         .input-group {
@@ -659,7 +668,7 @@ if (isset($_GET['get_gifs'])) {
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(20px);
+                transform: translateY(30px);
             }
             to {
                 opacity: 1;
@@ -672,17 +681,8 @@ if (isset($_GET['get_gifs'])) {
             margin-bottom: 8px;
             font-size: 15px;
             font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        body.purple .input-group label,
-        body.gray .input-group label,
-        body.green .input-group label,
-        body.blue .input-group label,
-        body.orange .input-group label,
-        body.red .input-group label,
-        body.teal .input-group label {
-            color: rgba(255,255,255,0.8);
+            color: rgba(255,255,255,0.9);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         
         .auth-form input {
@@ -691,56 +691,11 @@ if (isset($_GET['get_gifs'])) {
             border: 2px solid transparent;
             border-radius: 15px;
             font-size: 16px;
-            transition: all 0.4s ease;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             -webkit-appearance: none;
-        }
-        
-        body.purple .auth-form input {
-            background: rgba(75, 40, 90, 0.8);
-            border-color: #9b59b6;
+            background: rgba(255,255,255,0.15);
             color: white;
-        }
-        
-        body.pink .auth-form input {
-            background: rgba(255, 200, 200, 0.8);
-            border-color: #ff9f9f;
-            color: #333;
-        }
-        
-        body.gray .auth-form input {
-            background: rgba(70, 80, 90, 0.8);
-            border-color: #7f8c8d;
-            color: white;
-        }
-        
-        body.green .auth-form input {
-            background: rgba(30, 100, 70, 0.8);
-            border-color: #27ae60;
-            color: white;
-        }
-        
-        body.blue .auth-form input {
-            background: rgba(40, 80, 120, 0.8);
-            border-color: #3498db;
-            color: white;
-        }
-        
-        body.orange .auth-form input {
-            background: rgba(255, 140, 66, 0.8);
-            border-color: #ff8c42;
-            color: white;
-        }
-        
-        body.red .auth-form input {
-            background: rgba(200, 50, 50, 0.8);
-            border-color: #dc143c;
-            color: white;
-        }
-        
-        body.teal .auth-form input {
-            background: rgba(30, 150, 140, 0.8);
-            border-color: #20b2aa;
-            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .auth-form input::placeholder {
@@ -750,8 +705,9 @@ if (isset($_GET['get_gifs'])) {
         .auth-form input:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.4);
             transform: translateY(-3px) scale(1.02);
+            background: rgba(255,255,255,0.25);
         }
         
         .auth-form button {
@@ -764,63 +720,90 @@ if (isset($_GET['get_gifs'])) {
             font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.5s ease;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             margin-top: 15px;
             -webkit-appearance: none;
             position: relative;
             overflow: hidden;
         }
         
+        .auth-form button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .auth-form button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
         .auth-form button:hover {
             transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.5);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
         }
         
         .error {
-            color: #ff4444;
+            color: #ff6b6b;
             text-align: center;
             margin-top: 15px;
             font-size: 14px;
-            animation: shake 0.5s ease;
+            animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+            text-shadow: 0 0 10px rgba(255,107,107,0.3);
         }
         
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
         }
         
         .success {
-            color: #00c851;
+            color: #00d68f;
             text-align: center;
             margin-top: 15px;
             font-size: 14px;
-            animation: popIn 0.5s ease;
+            animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            text-shadow: 0 0 10px rgba(0,214,143,0.3);
         }
         
         @keyframes popIn {
-            0% { transform: scale(0); }
-            70% { transform: scale(1.2); }
-            100% { transform: scale(1); }
+            0% { 
+                transform: scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+            100% { 
+                transform: scale(1) rotate(0);
+                opacity: 1;
+            }
         }
         
         .chat-app {
             max-width: 1200px;
             width: 100%;
             height: 90vh;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
             border-radius: 30px;
             overflow: hidden;
             display: none;
             flex-direction: column;
             box-shadow: 0 25px 50px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.3);
-            transition: transform 1s ease, background 2s ease;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transform: scale(1);
         }
         
         .chat-app.theme-change {
-            animation: themeSpin 1s ease;
+            animation: themeSpin 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
         
         @keyframes themeSpin {
@@ -828,7 +811,8 @@ if (isset($_GET['get_gifs'])) {
                 transform: rotate(0deg) scale(1);
             }
             50% {
-                transform: rotate(180deg) scale(1.05);
+                transform: rotate(180deg) scale(1.1);
+                box-shadow: 0 50px 100px rgba(102, 126, 234, 0.5);
             }
             100% {
                 transform: rotate(360deg) scale(1);
@@ -837,46 +821,18 @@ if (isset($_GET['get_gifs'])) {
         
         .chat-app.show {
             display: flex;
+            animation: appAppear 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
         
-        body.purple .chat-app {
-            background: rgba(26, 11, 46, 0.9);
-            border: 1px solid rgba(200,150,255,0.3);
-        }
-        
-        body.pink .chat-app {
-            background: rgba(255, 220, 220, 0.9);
-            border: 1px solid rgba(255,150,150,0.3);
-        }
-        
-        body.gray .chat-app {
-            background: rgba(44, 62, 80, 0.9);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        body.green .chat-app {
-            background: rgba(19, 78, 94, 0.9);
-            border: 1px solid rgba(120,255,120,0.2);
-        }
-        
-        body.blue .chat-app {
-            background: rgba(43, 88, 118, 0.9);
-            border: 1px solid rgba(100,200,255,0.3);
-        }
-        
-        body.orange .chat-app {
-            background: rgba(255, 107, 107, 0.9);
-            border: 1px solid rgba(255,200,100,0.3);
-        }
-        
-        body.red .chat-app {
-            background: rgba(203, 45, 62, 0.9);
-            border: 1px solid rgba(255,100,100,0.3);
-        }
-        
-        body.teal .chat-app {
-            background: rgba(17, 153, 142, 0.9);
-            border: 1px solid rgba(100,255,150,0.3);
+        @keyframes appAppear {
+            0% {
+                opacity: 0;
+                transform: scale(0.8) translateY(50px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
         }
         
         .chat-header {
@@ -890,7 +846,25 @@ if (isset($_GET['get_gifs'])) {
             gap: 15px;
             position: relative;
             overflow: hidden;
-            transition: background 2s ease;
+            transition: all 0.5s ease;
+        }
+        
+        .chat-header::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: rotate(45deg);
+            animation: headerShine 6s ease-in-out infinite;
+        }
+        
+        @keyframes headerShine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            20% { transform: translateX(100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
         }
         
         body.purple .chat-header {
@@ -917,8 +891,8 @@ if (isset($_GET['get_gifs'])) {
             background: linear-gradient(45deg, #ff8c42, #ff6b6b);
         }
         
-        body.red .chat-header {
-            background: linear-gradient(45deg, #dc143c, #cb2d3e);
+        body.black .chat-header {
+            background: linear-gradient(45deg, #000000, #434343);
         }
         
         body.teal .chat-header {
@@ -926,10 +900,17 @@ if (isset($_GET['get_gifs'])) {
         }
         
         .chat-header h2 {
-            font-size: 24px;
-            font-weight: 600;
+            font-size: 28px;
+            font-weight: 700;
             position: relative;
             z-index: 1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            animation: glow 3s ease-in-out infinite;
+        }
+        
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 20px rgba(255,255,255,0.5); }
+            50% { text-shadow: 0 0 40px rgba(255,255,255,0.8); }
         }
         
         .user-info {
@@ -950,6 +931,14 @@ if (isset($_GET['get_gifs'])) {
             border-radius: 30px;
             font-weight: 600;
             font-size: 16px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .current-user:hover {
+            transform: scale(1.05);
+            background: rgba(255,255,255,0.3);
         }
         
         .creator-badge {
@@ -963,6 +952,12 @@ if (isset($_GET['get_gifs'])) {
             background: linear-gradient(45deg, #ffd700, #ffa500);
             color: #000;
             font-weight: bold;
+            animation: goldGlow 2s ease-in-out infinite;
+        }
+        
+        @keyframes goldGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(255,215,0,0.5); }
+            50% { box-shadow: 0 0 20px rgba(255,215,0,0.8); }
         }
         
         .admin-badge {
@@ -976,6 +971,12 @@ if (isset($_GET['get_gifs'])) {
             background: linear-gradient(45deg, #9b59b6, #8e44ad);
             color: white;
             font-weight: bold;
+            animation: purpleGlow 2s ease-in-out infinite;
+        }
+        
+        @keyframes purpleGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(155,89,182,0.5); }
+            50% { box-shadow: 0 0 20px rgba(155,89,182,0.8); }
         }
         
         .settings-btn {
@@ -987,131 +988,114 @@ if (isset($_GET['get_gifs'])) {
             color: white;
             font-size: 20px;
             cursor: pointer;
-            transition: all 0.5s ease;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             display: flex;
             align-items: center;
             justify-content: center;
             -webkit-appearance: none;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .settings-btn:hover {
-            transform: rotate(180deg) scale(1.1);
+            transform: rotate(360deg) scale(1.1);
             background: rgba(255,255,255,0.3);
+            box-shadow: 0 0 30px rgba(255,255,255,0.3);
         }
         
         .logout-btn {
             padding: 10px 22px;
-            background: #ff4444;
+            background: rgba(255,68,68,0.3);
             color: white;
-            border: none;
+            border: 1px solid rgba(255,68,68,0.5);
             border-radius: 30px;
             cursor: pointer;
             font-size: 16px;
             font-weight: 600;
-            transition: all 0.5s ease;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             -webkit-appearance: none;
+            backdrop-filter: blur(5px);
         }
         
         .logout-btn:hover {
             transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 10px 20px rgba(255,68,68,0.4);
+            background: rgba(255,68,68,0.5);
+            box-shadow: 0 10px 30px rgba(255,68,68,0.4);
+            border-color: #ff4444;
         }
         
         .admin-panel-btn {
             padding: 10px 22px;
-            background: linear-gradient(45deg, #ffd700, #ffa500);
-            color: #000;
-            border: none;
+            background: linear-gradient(45deg, rgba(255,215,0,0.3), rgba(255,165,0,0.3));
+            color: white;
+            border: 1px solid rgba(255,215,0,0.5);
             border-radius: 30px;
             cursor: pointer;
             font-size: 16px;
             font-weight: 600;
-            transition: all 0.5s ease;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             -webkit-appearance: none;
+            backdrop-filter: blur(5px);
             display: none;
         }
         
         .admin-panel-btn:hover {
             transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 10px 20px rgba(255,215,0,0.4);
+            background: linear-gradient(45deg, rgba(255,215,0,0.5), rgba(255,165,0,0.5));
+            box-shadow: 0 10px 30px rgba(255,215,0,0.4);
+            border-color: #ffd700;
         }
         
         .admin-panel-btn.show {
             display: block;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
         
         .messages-container {
             flex: 1;
             overflow-y: auto;
             padding: 25px;
-            background: rgba(255,255,255,0.5);
             display: flex;
             flex-direction: column;
             gap: 15px;
             scroll-behavior: smooth;
-            transition: background 2s ease;
-        }
-        
-        body.purple .messages-container {
-            background: rgba(75, 40, 90, 0.4);
-        }
-        
-        body.pink .messages-container {
-            background: rgba(255, 200, 200, 0.4);
-        }
-        
-        body.gray .messages-container {
-            background: rgba(70, 80, 90, 0.4);
-        }
-        
-        body.green .messages-container {
-            background: rgba(30, 100, 70, 0.4);
-        }
-        
-        body.blue .messages-container {
-            background: rgba(40, 80, 120, 0.4);
-        }
-        
-        body.orange .messages-container {
-            background: rgba(255, 140, 66, 0.3);
-        }
-        
-        body.red .messages-container {
-            background: rgba(200, 50, 50, 0.3);
-        }
-        
-        body.teal .messages-container {
-            background: rgba(30, 150, 140, 0.3);
         }
         
         .message {
             max-width: 70%;
             padding: 15px 20px;
             border-radius: 20px;
-            animation: messagePop 0.5s ease;
+            animation: messageAppear 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             font-size: 16px;
             word-wrap: break-word;
             position: relative;
-            transition: all 2s ease;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
-        @keyframes messagePop {
+        @keyframes messageAppear {
             0% {
                 opacity: 0;
-                transform: scale(0.3) translateY(30px);
+                transform: translateY(30px) scale(0.8);
             }
             70% {
-                transform: scale(1.05) translateY(-5px);
+                transform: translateY(-5px) scale(1.02);
             }
             100% {
                 opacity: 1;
-                transform: scale(1) translateY(0);
+                transform: translateY(0) scale(1);
             }
         }
         
         .message:hover {
             transform: scale(1.02) translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            border-color: rgba(255,255,255,0.2);
         }
         
         .message.sent {
@@ -1145,8 +1129,8 @@ if (isset($_GET['get_gifs'])) {
             background: linear-gradient(45deg, #ff8c42, #ff6b6b);
         }
         
-        body.red .message.sent {
-            background: linear-gradient(45deg, #dc143c, #cb2d3e);
+        body.black .message.sent {
+            background: linear-gradient(45deg, #434343, #000000);
         }
         
         body.teal .message.sent {
@@ -1155,49 +1139,10 @@ if (isset($_GET['get_gifs'])) {
         
         .message.received {
             align-self: flex-start;
-            color: #333;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(5px);
+            color: white;
             border-bottom-left-radius: 5px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        body.purple .message.received {
-            background: rgba(75, 40, 90, 0.8);
-            color: #eee;
-        }
-        
-        body.pink .message.received {
-            background: rgba(255, 200, 200, 0.8);
-            color: #333;
-        }
-        
-        body.gray .message.received {
-            background: rgba(70, 80, 90, 0.8);
-            color: #eee;
-        }
-        
-        body.green .message.received {
-            background: rgba(30, 100, 70, 0.8);
-            color: #eee;
-        }
-        
-        body.blue .message.received {
-            background: rgba(40, 80, 120, 0.8);
-            color: #eee;
-        }
-        
-        body.orange .message.received {
-            background: rgba(255, 140, 66, 0.8);
-            color: #333;
-        }
-        
-        body.red .message.received {
-            background: rgba(200, 50, 50, 0.8);
-            color: #333;
-        }
-        
-        body.teal .message.received {
-            background: rgba(30, 150, 140, 0.8);
-            color: #333;
         }
         
         .message-sender {
@@ -1206,7 +1151,7 @@ if (isset($_GET['get_gifs'])) {
             gap: 5px;
             font-size: 13px;
             font-weight: 600;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             opacity: 0.9;
             flex-wrap: wrap;
         }
@@ -1250,21 +1195,33 @@ if (isset($_GET['get_gifs'])) {
             align-items: center;
             justify-content: center;
             font-size: 14px;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 10;
         }
         
         .message:hover .delete-btn {
             display: flex;
+            animation: deleteAppear 0.3s ease;
+        }
+        
+        @keyframes deleteAppear {
+            0% {
+                transform: scale(0) rotate(-90deg);
+            }
+            100% {
+                transform: scale(1) rotate(0);
+            }
         }
         
         .delete-btn:hover {
-            transform: scale(1.2);
+            transform: scale(1.2) rotate(90deg);
             background: #ff6666;
+            box-shadow: 0 0 20px rgba(255,68,68,0.5);
         }
         
         .message-content {
-            margin-bottom: 5px;
-            line-height: 1.4;
+            margin-bottom: 8px;
+            line-height: 1.5;
             font-size: 16px;
         }
         
@@ -1273,12 +1230,12 @@ if (isset($_GET['get_gifs'])) {
             max-height: 300px;
             border-radius: 12px;
             cursor: pointer;
-            transition: all 0.5s;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
         
         .message-content img:hover {
             transform: scale(1.05) rotate(2deg);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
         }
         
         .message-time {
@@ -1297,52 +1254,13 @@ if (isset($_GET['get_gifs'])) {
         
         .chat-input-area {
             padding: 20px 25px;
-            border-top: 2px solid rgba(102, 126, 234, 0.2);
+            border-top: 1px solid rgba(255,255,255,0.1);
             display: flex;
             gap: 12px;
             align-items: center;
             flex-wrap: wrap;
-            transition: background 2s ease;
-        }
-        
-        body.purple .chat-input-area {
-            background: rgba(26, 11, 46, 0.8);
-            border-top-color: rgba(155, 89, 182, 0.3);
-        }
-        
-        body.pink .chat-input-area {
-            background: rgba(255, 220, 220, 0.8);
-            border-top-color: rgba(255, 150, 150, 0.3);
-        }
-        
-        body.gray .chat-input-area {
-            background: rgba(44, 62, 80, 0.8);
-            border-top-color: rgba(255,255,255,0.1);
-        }
-        
-        body.green .chat-input-area {
-            background: rgba(19, 78, 94, 0.8);
-            border-top-color: rgba(39, 174, 96, 0.3);
-        }
-        
-        body.blue .chat-input-area {
-            background: rgba(43, 88, 118, 0.8);
-            border-top-color: rgba(52, 152, 219, 0.3);
-        }
-        
-        body.orange .chat-input-area {
-            background: rgba(255, 107, 107, 0.8);
-            border-top-color: rgba(255, 140, 66, 0.3);
-        }
-        
-        body.red .chat-input-area {
-            background: rgba(203, 45, 62, 0.8);
-            border-top-color: rgba(220, 20, 60, 0.3);
-        }
-        
-        body.teal .chat-input-area {
-            background: rgba(17, 153, 142, 0.8);
-            border-top-color: rgba(32, 178, 170, 0.3);
+            background: rgba(0,0,0,0.2);
+            backdrop-filter: blur(5px);
         }
         
         .chat-input-area input {
@@ -1352,56 +1270,11 @@ if (isset($_GET['get_gifs'])) {
             border: 2px solid transparent;
             border-radius: 30px;
             font-size: 16px;
-            transition: all 0.4s ease;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             -webkit-appearance: none;
-        }
-        
-        body.purple .chat-input-area input {
-            background: rgba(75, 40, 90, 0.8);
-            border-color: #9b59b6;
+            background: rgba(255,255,255,0.15);
             color: white;
-        }
-        
-        body.pink .chat-input-area input {
-            background: rgba(255, 200, 200, 0.8);
-            border-color: #ff9f9f;
-            color: #333;
-        }
-        
-        body.gray .chat-input-area input {
-            background: rgba(70, 80, 90, 0.8);
-            border-color: #7f8c8d;
-            color: white;
-        }
-        
-        body.green .chat-input-area input {
-            background: rgba(30, 100, 70, 0.8);
-            border-color: #27ae60;
-            color: white;
-        }
-        
-        body.blue .chat-input-area input {
-            background: rgba(40, 80, 120, 0.8);
-            border-color: #3498db;
-            color: white;
-        }
-        
-        body.orange .chat-input-area input {
-            background: rgba(255, 140, 66, 0.8);
-            border-color: #ff8c42;
-            color: white;
-        }
-        
-        body.red .chat-input-area input {
-            background: rgba(200, 50, 50, 0.8);
-            border-color: #dc143c;
-            color: white;
-        }
-        
-        body.teal .chat-input-area input {
-            background: rgba(30, 150, 140, 0.8);
-            border-color: #20b2aa;
-            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .chat-input-area input::placeholder {
@@ -1411,8 +1284,9 @@ if (isset($_GET['get_gifs'])) {
         .chat-input-area input:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
             transform: translateY(-3px) scale(1.02);
+            background: rgba(255,255,255,0.25);
         }
         
         .action-btn {
@@ -1424,12 +1298,13 @@ if (isset($_GET['get_gifs'])) {
             border-radius: 50%;
             cursor: pointer;
             font-size: 26px;
-            transition: all 0.5s ease;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             display: flex;
             align-items: center;
             justify-content: center;
             -webkit-appearance: none;
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         body.purple .action-btn {
@@ -1456,8 +1331,8 @@ if (isset($_GET['get_gifs'])) {
             background: linear-gradient(45deg, #ff8c42, #ff6b6b);
         }
         
-        body.red .action-btn {
-            background: linear-gradient(45deg, #dc143c, #cb2d3e);
+        body.black .action-btn {
+            background: linear-gradient(45deg, #434343, #000000);
         }
         
         body.teal .action-btn {
@@ -1466,7 +1341,7 @@ if (isset($_GET['get_gifs'])) {
         
         .action-btn:hover {
             transform: rotate(360deg) scale(1.1);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
         }
         
         .action-btn:active {
@@ -1480,55 +1355,17 @@ if (isset($_GET['get_gifs'])) {
             right: 25px;
             border-radius: 25px;
             padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
             display: none;
             grid-template-columns: repeat(12, 1fr);
             gap: 8px;
             z-index: 100;
             max-height: 350px;
             overflow-y: auto;
-            animation: slideUp 0.5s ease;
-            transition: background 2s ease;
-        }
-        
-        body.purple .emoji-panel {
-            background: rgba(26, 11, 46, 0.95);
-            border: 1px solid #9b59b6;
-        }
-        
-        body.pink .emoji-panel {
-            background: rgba(255, 220, 220, 0.95);
-            border: 1px solid #ff9f9f;
-        }
-        
-        body.gray .emoji-panel {
-            background: rgba(44, 62, 80, 0.95);
-            border: 1px solid #7f8c8d;
-        }
-        
-        body.green .emoji-panel {
-            background: rgba(19, 78, 94, 0.95);
-            border: 1px solid #27ae60;
-        }
-        
-        body.blue .emoji-panel {
-            background: rgba(43, 88, 118, 0.95);
-            border: 1px solid #3498db;
-        }
-        
-        body.orange .emoji-panel {
-            background: rgba(255, 107, 107, 0.95);
-            border: 1px solid #ff8c42;
-        }
-        
-        body.red .emoji-panel {
-            background: rgba(203, 45, 62, 0.95);
-            border: 1px solid #dc143c;
-        }
-        
-        body.teal .emoji-panel {
-            background: rgba(17, 153, 142, 0.95);
-            border: 1px solid #20b2aa;
+            animation: slideUp 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         @keyframes slideUp {
@@ -1552,13 +1389,15 @@ if (isset($_GET['get_gifs'])) {
             cursor: pointer;
             padding: 8px;
             border-radius: 12px;
-            transition: all 0.3s ease;
-            color: inherit;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            color: white;
+            background: rgba(255,255,255,0.05);
         }
         
         .emoji-item:hover {
             transform: scale(1.3) rotate(5deg);
             background: rgba(255,255,255,0.2);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
         .gif-search {
@@ -1568,57 +1407,19 @@ if (isset($_GET['get_gifs'])) {
             right: 25px;
             border-radius: 25px;
             padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
             display: none;
             z-index: 100;
             max-height: 400px;
             overflow-y: auto;
-            animation: slideUp 0.5s ease;
-            transition: background 2s ease;
+            animation: slideUp 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .gif-search.show {
             display: block;
-        }
-        
-        body.purple .gif-search {
-            background: rgba(26, 11, 46, 0.95);
-            border: 1px solid #9b59b6;
-        }
-        
-        body.pink .gif-search {
-            background: rgba(255, 220, 220, 0.95);
-            border: 1px solid #ff9f9f;
-        }
-        
-        body.gray .gif-search {
-            background: rgba(44, 62, 80, 0.95);
-            border: 1px solid #7f8c8d;
-        }
-        
-        body.green .gif-search {
-            background: rgba(19, 78, 94, 0.95);
-            border: 1px solid #27ae60;
-        }
-        
-        body.blue .gif-search {
-            background: rgba(43, 88, 118, 0.95);
-            border: 1px solid #3498db;
-        }
-        
-        body.orange .gif-search {
-            background: rgba(255, 107, 107, 0.95);
-            border: 1px solid #ff8c42;
-        }
-        
-        body.red .gif-search {
-            background: rgba(203, 45, 62, 0.95);
-            border: 1px solid #dc143c;
-        }
-        
-        body.teal .gif-search {
-            background: rgba(17, 153, 142, 0.95);
-            border: 1px solid #20b2aa;
         }
         
         .gif-search input {
@@ -1629,24 +1430,16 @@ if (isset($_GET['get_gifs'])) {
             margin-bottom: 20px;
             font-size: 16px;
             transition: all 0.3s;
-        }
-        
-        body.purple .gif-search input,
-        body.gray .gif-search input,
-        body.green .gif-search input,
-        body.blue .gif-search input,
-        body.orange .gif-search input,
-        body.red .gif-search input,
-        body.teal .gif-search input {
             background: rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.2);
             color: white;
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .gif-search input:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+            background: rgba(255,255,255,0.25);
         }
         
         .gif-results {
@@ -1661,12 +1454,14 @@ if (isset($_GET['get_gifs'])) {
             object-fit: cover;
             border-radius: 15px;
             cursor: pointer;
-            transition: all 0.5s;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            border: 2px solid transparent;
         }
         
         .gif-item:hover {
             transform: scale(1.1) rotate(5deg);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+            border-color: #667eea;
         }
         
         .settings-panel, .admin-panel {
@@ -1676,13 +1471,14 @@ if (isset($_GET['get_gifs'])) {
             transform: translate(-50%, -50%);
             border-radius: 30px;
             padding: 35px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.4);
             z-index: 1000;
             display: none;
             width: 90%;
             max-width: 450px;
-            animation: modalPop 0.5s ease;
-            transition: background 2s ease;
+            animation: modalPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(20px);
             border: 1px solid rgba(255,255,255,0.2);
         }
         
@@ -1690,62 +1486,6 @@ if (isset($_GET['get_gifs'])) {
             max-width: 600px;
             max-height: 80vh;
             overflow-y: auto;
-        }
-        
-        body.purple .settings-panel,
-        body.purple .admin-panel {
-            background: rgba(26, 11, 46, 0.95);
-            border: 1px solid #9b59b6;
-            color: white;
-        }
-        
-        body.pink .settings-panel,
-        body.pink .admin-panel {
-            background: rgba(255, 220, 220, 0.95);
-            border: 1px solid #ff9f9f;
-            color: #333;
-        }
-        
-        body.gray .settings-panel,
-        body.gray .admin-panel {
-            background: rgba(44, 62, 80, 0.95);
-            border: 1px solid #7f8c8d;
-            color: white;
-        }
-        
-        body.green .settings-panel,
-        body.green .admin-panel {
-            background: rgba(19, 78, 94, 0.95);
-            border: 1px solid #27ae60;
-            color: white;
-        }
-        
-        body.blue .settings-panel,
-        body.blue .admin-panel {
-            background: rgba(43, 88, 118, 0.95);
-            border: 1px solid #3498db;
-            color: white;
-        }
-        
-        body.orange .settings-panel,
-        body.orange .admin-panel {
-            background: rgba(255, 107, 107, 0.95);
-            border: 1px solid #ff8c42;
-            color: white;
-        }
-        
-        body.red .settings-panel,
-        body.red .admin-panel {
-            background: rgba(203, 45, 62, 0.95);
-            border: 1px solid #dc143c;
-            color: white;
-        }
-        
-        body.teal .settings-panel,
-        body.teal .admin-panel {
-            background: rgba(17, 153, 142, 0.95);
-            border: 1px solid #20b2aa;
-            color: white;
         }
         
         @keyframes modalPop {
@@ -1770,11 +1510,14 @@ if (isset($_GET['get_gifs'])) {
         .settings-panel h3,
         .admin-panel h3 {
             margin-bottom: 25px;
-            font-size: 28px;
+            font-size: 32px;
             text-align: center;
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(45deg, #667eea, #764ba2, #9f7aea);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            animation: gradientText 3s ease infinite;
+            background-size: 200% auto;
         }
         
         .settings-option {
@@ -1786,6 +1529,7 @@ if (isset($_GET['get_gifs'])) {
             margin-bottom: 12px;
             font-size: 18px;
             font-weight: 600;
+            color: white;
         }
         
         .settings-theme-buttons {
@@ -1804,21 +1548,23 @@ if (isset($_GET['get_gifs'])) {
             align-items: center;
             justify-content: center;
             gap: 8px;
-            transition: all 0.4s;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             font-size: 14px;
-            color: inherit;
+            color: white;
         }
         
         .settings-theme-btn:hover {
             transform: scale(1.05) translateY(-2px);
             background: rgba(255,255,255,0.2);
-            box-shadow: 0 8px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
         }
         
         .settings-theme-btn.active {
             background: linear-gradient(45deg, #667eea, #764ba2);
             border-color: transparent;
             color: white;
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
         }
         
         .settings-checkbox {
@@ -1835,6 +1581,10 @@ if (isset($_GET['get_gifs'])) {
             accent-color: #667eea;
         }
         
+        .settings-checkbox label {
+            color: white;
+        }
+        
         .settings-close {
             width: 100%;
             padding: 16px;
@@ -1846,12 +1596,12 @@ if (isset($_GET['get_gifs'])) {
             font-weight: 600;
             cursor: pointer;
             margin-top: 25px;
-            transition: all 0.5s;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
         
         .settings-close:hover {
             transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
         }
         
         .user-list {
@@ -1866,7 +1616,8 @@ if (isset($_GET['get_gifs'])) {
             justify-content: space-between;
             padding: 15px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            border-radius: 10px;
         }
         
         .user-item:hover {
@@ -1882,11 +1633,13 @@ if (isset($_GET['get_gifs'])) {
         
         .user-name {
             font-weight: 600;
+            color: white;
         }
         
         .user-login {
             font-size: 12px;
             opacity: 0.7;
+            color: rgba(255,255,255,0.7);
         }
         
         .admin-actions {
@@ -1902,33 +1655,35 @@ if (isset($_GET['get_gifs'])) {
         }
         
         .ban-input input {
-            width: 60px;
+            width: 70px;
             padding: 8px;
             border: 1px solid rgba(255,255,255,0.2);
             border-radius: 8px;
             background: rgba(255,255,255,0.1);
-            color: inherit;
+            color: white;
         }
         
         .ban-input button {
-            padding: 8px 12px;
+            padding: 8px 15px;
             border: none;
             border-radius: 8px;
-            background: #ff4444;
+            background: linear-gradient(45deg, #ff4444, #ff6b6b);
             color: white;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            font-weight: 600;
         }
         
         .ban-input button:hover {
             transform: scale(1.05);
-            background: #ff6666;
+            box-shadow: 0 5px 15px rgba(255,68,68,0.4);
         }
         
         .loading-gif {
             text-align: center;
             padding: 30px;
             opacity: 0.7;
+            color: white;
         }
         
         .no-gifs {
@@ -1936,6 +1691,7 @@ if (isset($_GET['get_gifs'])) {
             padding: 30px;
             opacity: 0.7;
             grid-column: span 3;
+            color: white;
         }
         
         ::-webkit-scrollbar {
@@ -1943,13 +1699,17 @@ if (isset($_GET['get_gifs'])) {
         }
         
         ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.05);
+            background: rgba(255,255,255,0.05);
             border-radius: 5px;
         }
         
         ::-webkit-scrollbar-thumb {
             background: linear-gradient(45deg, #667eea, #764ba2);
             border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, #764ba2, #667eea);
         }
         
         @media (max-width: 768px) {
@@ -1991,7 +1751,7 @@ if (isset($_GET['get_gifs'])) {
             }
             
             .chat-header h2 {
-                font-size: 20px;
+                font-size: 24px;
             }
             
             .current-user {
@@ -2090,7 +1850,7 @@ if (isset($_GET['get_gifs'])) {
     
     <div id="chatApp" class="chat-app">
         <div class="chat-header">
-            <h2>Чат</h2>
+            <h2>✨ Чат ✨</h2>
             <div class="user-info">
                 <span class="current-user" id="currentUser"></span>
                 <button class="admin-panel-btn" id="adminPanelBtn">👑 Управление</button>
@@ -2161,93 +1921,6 @@ if (isset($_GET['get_gifs'])) {
                 <span class="emoji-item">💞</span>
                 <span class="emoji-item">💘</span>
                 <span class="emoji-item">💝</span>
-                <span class="emoji-item">😁</span>
-                <span class="emoji-item">😆</span>
-                <span class="emoji-item">😅</span>
-                <span class="emoji-item">🤣</span>
-                <span class="emoji-item">😋</span>
-                <span class="emoji-item">😜</span>
-                <span class="emoji-item">🤨</span>
-                <span class="emoji-item">🧐</span>
-                <span class="emoji-item">😏</span>
-                <span class="emoji-item">😒</span>
-                <span class="emoji-item">😞</span>
-                <span class="emoji-item">😔</span>
-                <span class="emoji-item">😟</span>
-                <span class="emoji-item">😕</span>
-                <span class="emoji-item">🙃</span>
-                <span class="emoji-item">😶</span>
-                <span class="emoji-item">😐</span>
-                <span class="emoji-item">😑</span>
-                <span class="emoji-item">😬</span>
-                <span class="emoji-item">🙄</span>
-                <span class="emoji-item">😮</span>
-                <span class="emoji-item">😲</span>
-                <span class="emoji-item">😴</span>
-                <span class="emoji-item">🤤</span>
-                <span class="emoji-item">😪</span>
-                <span class="emoji-item">😵</span>
-                <span class="emoji-item">🤐</span>
-                <span class="emoji-item">🥴</span>
-                <span class="emoji-item">🤢</span>
-                <span class="emoji-item">🤮</span>
-                <span class="emoji-item">🤧</span>
-                <span class="emoji-item">🥵</span>
-                <span class="emoji-item">🥶</span>
-                <span class="emoji-item">🥳</span>
-                <span class="emoji-item">🥸</span>
-                <span class="emoji-item">🤠</span>
-                <span class="emoji-item">👽</span>
-                <span class="emoji-item">👾</span>
-                <span class="emoji-item">🤖</span>
-                <span class="emoji-item">🎃</span>
-                <span class="emoji-item">😺</span>
-                <span class="emoji-item">😸</span>
-                <span class="emoji-item">😹</span>
-                <span class="emoji-item">😻</span>
-                <span class="emoji-item">😼</span>
-                <span class="emoji-item">😽</span>
-                <span class="emoji-item">🙀</span>
-                <span class="emoji-item">😿</span>
-                <span class="emoji-item">😾</span>
-                <span class="emoji-item">🙈</span>
-                <span class="emoji-item">🙉</span>
-                <span class="emoji-item">🙊</span>
-                <span class="emoji-item">🐒</span>
-                <span class="emoji-item">🐔</span>
-                <span class="emoji-item">🐧</span>
-                <span class="emoji-item">🐦</span>
-                <span class="emoji-item">🐤</span>
-                <span class="emoji-item">🐣</span>
-                <span class="emoji-item">🐥</span>
-                <span class="emoji-item">🐺</span>
-                <span class="emoji-item">🐗</span>
-                <span class="emoji-item">🐴</span>
-                <span class="emoji-item">🦄</span>
-                <span class="emoji-item">🐝</span>
-                <span class="emoji-item">🐛</span>
-                <span class="emoji-item">🦋</span>
-                <span class="emoji-item">🐌</span>
-                <span class="emoji-item">🐞</span>
-                <span class="emoji-item">🐜</span>
-                <span class="emoji-item">🦟</span>
-                <span class="emoji-item">🦗</span>
-                <span class="emoji-item">🕷️</span>
-                <span class="emoji-item">🦂</span>
-                <span class="emoji-item">🐢</span>
-                <span class="emoji-item">🐍</span>
-                <span class="emoji-item">🦎</span>
-                <span class="emoji-item">🐙</span>
-                <span class="emoji-item">🦑</span>
-                <span class="emoji-item">🦐</span>
-                <span class="emoji-item">🦞</span>
-                <span class="emoji-item">🐠</span>
-                <span class="emoji-item">🐟</span>
-                <span class="emoji-item">🐡</span>
-                <span class="emoji-item">🐬</span>
-                <span class="emoji-item">🐳</span>
-                <span class="emoji-item">🐋</span>
-                <span class="emoji-item">🦈</span>
             </div>
             
             <div class="gif-search" id="gifSearch">
@@ -2277,7 +1950,7 @@ if (isset($_GET['get_gifs'])) {
                 <button class="settings-theme-btn" data-theme="green">🌿 Зеленая</button>
                 <button class="settings-theme-btn" data-theme="blue">💙 Синяя</button>
                 <button class="settings-theme-btn" data-theme="orange">🧡 Оранжевая</button>
-                <button class="settings-theme-btn" data-theme="red">❤️ Красная</button>
+                <button class="settings-theme-btn" data-theme="black">🖤 Черная</button>
                 <button class="settings-theme-btn" data-theme="teal">💚 Бирюзовая</button>
             </div>
         </div>
@@ -2408,7 +2081,7 @@ if (isset($_GET['get_gifs'])) {
             chatApp.classList.add('theme-change');
             setTimeout(() => {
                 chatApp.classList.remove('theme-change');
-            }, 1000);
+            }, 1200);
             
             themeButtons.forEach(btn => {
                 if (btn.dataset.theme === theme) {
@@ -2717,6 +2390,7 @@ if (isset($_GET['get_gifs'])) {
                         emptyDiv.style.textAlign = 'center';
                         emptyDiv.style.padding = '40px';
                         emptyDiv.style.opacity = '0.7';
+                        emptyDiv.style.color = 'white';
                         emptyDiv.textContent = 'Нет сообщений. Напишите что-нибудь!';
                         messagesContainer.appendChild(emptyDiv);
                     }
