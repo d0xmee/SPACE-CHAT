@@ -5,6 +5,11 @@ header('Content-Type: text/html; charset=utf-8');
 $users_file = 'users.txt';
 $messages_file = 'messages.txt';
 $bans_file = 'bans.txt';
+$avatar_dir = 'avatars/';
+
+if (!file_exists($avatar_dir)) {
+    mkdir($avatar_dir, 0777, true);
+}
 
 $MAIN_ADMIN = 'd0xmee';
 $SECOND_ADMIN = 'xvii';
@@ -70,7 +75,7 @@ if (isset($_POST['register'])) {
             file_put_contents($users_file, "\n", FILE_APPEND);
         }
         
-        $user_line = $name . '|' . $login . '|' . $password . "\n";
+        $user_line = $name . '|' . $login . '|' . $password . "|\n";
         file_put_contents($users_file, $user_line, FILE_APPEND | LOCK_EX);
         
         echo json_encode(['success' => true]);
@@ -85,7 +90,7 @@ if (isset($_POST['login'])) {
     $password = trim($_POST['password']);
     
     if (isBanned($login)) {
-        echo json_encode(['success' => false, 'message' => 'Вы забанены']);
+        echo json_encode(['success' => false, 'message' => 'Вы забанены на 1 минуту']);
         exit;
     }
     
@@ -101,7 +106,8 @@ if (isset($_POST['login'])) {
                     $users[] = [
                         'name' => trim($parts[0]),
                         'login' => trim($parts[1]),
-                        'password' => trim($parts[2])
+                        'password' => trim($parts[2]),
+                        'avatar' => isset($parts[3]) ? trim($parts[3]) : ''
                     ];
                 }
             }
@@ -110,11 +116,13 @@ if (isset($_POST['login'])) {
     
     $logged = false;
     $user_name = '';
+    $user_avatar = '';
     
     foreach ($users as $user) {
         if ($user['login'] === $login && $user['password'] === $password) {
             $logged = true;
             $user_name = $user['name'];
+            $user_avatar = $user['avatar'];
             break;
         }
     }
@@ -122,10 +130,11 @@ if (isset($_POST['login'])) {
     if ($logged) {
         $_SESSION['user'] = $login;
         $_SESSION['name'] = $user_name;
+        $_SESSION['avatar'] = $user_avatar;
         
         setcookie('remember_user', $login, time() + (86400 * 30), '/');
         
-        echo json_encode(['success' => true, 'name' => $user_name]);
+        echo json_encode(['success' => true, 'name' => $user_name, 'avatar' => $user_avatar]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Неверный логин или пароль']);
     }
@@ -137,7 +146,8 @@ if (isset($_GET['check_session'])) {
         echo json_encode([
             'logged' => true, 
             'user' => $_SESSION['user'], 
-            'name' => $_SESSION['name']
+            'name' => $_SESSION['name'],
+            'avatar' => isset($_SESSION['avatar']) ? $_SESSION['avatar'] : ''
         ]);
     } elseif (isset($_COOKIE['remember_user'])) {
         $_SESSION['user'] = $_COOKIE['remember_user'];
@@ -150,6 +160,7 @@ if (isset($_GET['check_session'])) {
                     $parts = explode('|', $line);
                     if (trim($parts[1]) === $_COOKIE['remember_user']) {
                         $_SESSION['name'] = trim($parts[0]);
+                        $_SESSION['avatar'] = isset($parts[3]) ? trim($parts[3]) : '';
                         break;
                     }
                 }
@@ -159,7 +170,8 @@ if (isset($_GET['check_session'])) {
         echo json_encode([
             'logged' => true, 
             'user' => $_COOKIE['remember_user'],
-            'name' => isset($_SESSION['name']) ? $_SESSION['name'] : $_COOKIE['remember_user']
+            'name' => isset($_SESSION['name']) ? $_SESSION['name'] : $_COOKIE['remember_user'],
+            'avatar' => isset($_SESSION['avatar']) ? $_SESSION['avatar'] : ''
         ]);
     } else {
         echo json_encode(['logged' => false]);
@@ -173,6 +185,58 @@ if (isset($_POST['logout'])) {
     exit;
 }
 
+if (isset($_FILES['avatar']) && isset($_POST['update_avatar'])) {
+    if (!isset($_SESSION['user'])) {
+        echo json_encode(['success' => false, 'message' => 'Не авторизован']);
+        exit;
+    }
+    
+    $file = $_FILES['avatar'];
+    $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    
+    if (!in_array($file['type'], $allowed)) {
+        echo json_encode(['success' => false, 'message' => 'Неподдерживаемый формат файла']);
+        exit;
+    }
+    
+    if ($file['size'] > 5 * 1024 * 1024) {
+        echo json_encode(['success' => false, 'message' => 'Файл слишком большой (макс 5MB)']);
+        exit;
+    }
+    
+    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = $_SESSION['user'] . '_' . time() . '.' . $ext;
+    $filepath = $avatar_dir . $filename;
+    
+    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+        $_SESSION['avatar'] = $filepath;
+        
+        // Update users file
+        if (file_exists($users_file)) {
+            $content = file_get_contents($users_file);
+            $lines = explode("\n", $content);
+            $new_lines = [];
+            
+            foreach ($lines as $line) {
+                if (!empty($line)) {
+                    $parts = explode('|', $line);
+                    if (trim($parts[1]) === $_SESSION['user']) {
+                        $line = $parts[0] . '|' . $parts[1] . '|' . $parts[2] . '|' . $filepath;
+                    }
+                }
+                $new_lines[] = $line;
+            }
+            
+            file_put_contents($users_file, implode("\n", $new_lines));
+        }
+        
+        echo json_encode(['success' => true, 'avatar' => $filepath]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Ошибка загрузки файла']);
+    }
+    exit;
+}
+
 if (isset($_POST['send_message'])) {
     if (!isset($_SESSION['user'])) {
         echo json_encode(['success' => false, 'message' => 'Не авторизован']);
@@ -180,11 +244,13 @@ if (isset($_POST['send_message'])) {
     }
     
     if (isBanned($_SESSION['user'])) {
-        echo json_encode(['success' => false, 'message' => 'Вы забанены']);
+        echo json_encode(['success' => false, 'message' => 'Вы забанены на 1 минуту']);
         exit;
     }
     
     $from = isset($_SESSION['name']) ? $_SESSION['name'] : $_SESSION['user'];
+    $from_login = $_SESSION['user'];
+    $avatar = isset($_SESSION['avatar']) ? $_SESSION['avatar'] : '';
     $message = trim($_POST['message']);
     $type = isset($_POST['type']) ? $_POST['type'] : 'text';
     
@@ -197,7 +263,7 @@ if (isset($_POST['send_message'])) {
     $date = date('d.m.Y');
     $role = isAdmin($_SESSION['user']) ? 'admin' : 'user';
     
-    $new_message = $from . '|' . $message . '|' . $time . '|' . $date . '|' . $type . '|' . $role . "\n";
+    $new_message = $from . '|' . $from_login . '|' . $avatar . '|' . $message . '|' . $time . '|' . $date . '|' . $type . '|' . $role . "\n";
     file_put_contents($messages_file, $new_message, FILE_APPEND | LOCK_EX);
     
     $messages = [];
@@ -210,14 +276,16 @@ if (isset($_POST['send_message'])) {
         foreach ($lines as $line) {
             if (!empty($line)) {
                 $parts = explode('|', $line);
-                if (count($parts) >= 6) {
+                if (count($parts) >= 8) {
                     $messages[] = [
                         'from' => trim($parts[0]),
-                        'message' => trim($parts[1]),
-                        'time' => trim($parts[2]),
-                        'date' => trim($parts[3]),
-                        'type' => trim($parts[4]),
-                        'role' => trim($parts[5])
+                        'from_login' => trim($parts[1]),
+                        'avatar' => trim($parts[2]),
+                        'message' => trim($parts[3]),
+                        'time' => trim($parts[4]),
+                        'date' => trim($parts[5]),
+                        'type' => trim($parts[6]),
+                        'role' => trim($parts[7])
                     ];
                 }
             }
@@ -244,14 +312,16 @@ if (isset($_GET['get_messages'])) {
         foreach ($lines as $line) {
             if (!empty($line)) {
                 $parts = explode('|', $line);
-                if (count($parts) >= 6) {
+                if (count($parts) >= 8) {
                     $messages[] = [
                         'from' => trim($parts[0]),
-                        'message' => trim($parts[1]),
-                        'time' => trim($parts[2]),
-                        'date' => trim($parts[3]),
-                        'type' => trim($parts[4]),
-                        'role' => trim($parts[5])
+                        'from_login' => trim($parts[1]),
+                        'avatar' => trim($parts[2]),
+                        'message' => trim($parts[3]),
+                        'time' => trim($parts[4]),
+                        'date' => trim($parts[5]),
+                        'type' => trim($parts[6]),
+                        'role' => trim($parts[7])
                     ];
                 }
             }
@@ -292,102 +362,13 @@ if (isset($_POST['ban_user'])) {
     }
     
     $ban_login = $_POST['login'];
-    $minutes = intval($_POST['minutes']);
+    $minutes = 1;
     $ban_until = time() + ($minutes * 60);
     
     $ban_line = $ban_login . '|' . $minutes . '|' . $ban_until . "\n";
     file_put_contents($bans_file, $ban_line, FILE_APPEND | LOCK_EX);
     
     echo json_encode(['success' => true]);
-    exit;
-}
-
-if (isset($_GET['get_users'])) {
-    if (!isset($_SESSION['user']) || !isAdmin($_SESSION['user'])) {
-        echo json_encode([]);
-        exit;
-    }
-    
-    $users = [];
-    
-    if (file_exists($users_file)) {
-        $content = file_get_contents($users_file);
-        $lines = explode("\n", trim($content));
-        
-        foreach ($lines as $line) {
-            if (!empty($line)) {
-                $parts = explode('|', $line);
-                if (count($parts) >= 3) {
-                    $users[] = [
-                        'name' => trim($parts[0]),
-                        'login' => trim($parts[1])
-                    ];
-                }
-            }
-        }
-    }
-    
-    echo json_encode($users);
-    exit;
-}
-
-if (isset($_GET['get_gifs'])) {
-    $search = isset($_GET['search']) ? $_GET['search'] : 'funny';
-    
-    $gifs = [
-        'funny' => [
-            'https://media.giphy.com/media/3o7abB06u9bNzA8LC8/giphy.gif',
-            'https://media.giphy.com/media/l0MYt5jH6gkTWm8qo/giphy.gif',
-            'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif',
-            'https://media.giphy.com/media/3ohzdIvnJNp2WYhMPm/giphy.gif',
-            'https://media.giphy.com/media/l41YtZObRrI0W405m/giphy.gif',
-            'https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif',
-            'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif',
-            'https://media.giphy.com/media/l0HlNaQ6gWfllcjDO/giphy.gif'
-        ],
-        'cat' => [
-            'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif',
-            'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif',
-            'https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif',
-            'https://media.giphy.com/media/13borq7Zo4B1HO/giphy.gif',
-            'https://media.giphy.com/media/nNxT5qXRvF34M/giphy.gif'
-        ],
-        'dog' => [
-            'https://media.giphy.com/media/8vQSQ3cNXuDGo/giphy.gif',
-            'https://media.giphy.com/media/3o7abB06u9bNzA8LC8/giphy.gif',
-            'https://media.giphy.com/media/l3V0dy1zzyjbYTQQM/giphy.gif',
-            'https://media.giphy.com/media/5Vy3WpDbXXMze/giphy.gif'
-        ],
-        'dance' => [
-            'https://media.giphy.com/media/l0MYt5jH6gkTWm8qo/giphy.gif',
-            'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif',
-            'https://media.giphy.com/media/l41YtZObRrI0W405m/giphy.gif',
-            'https://media.giphy.com/media/3o7abB06u9bNzA8LC8/giphy.gif'
-        ],
-        'anime' => [
-            'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif',
-            'https://media.giphy.com/media/l0HlNaQ6gWfllcjDO/giphy.gif',
-            'https://media.giphy.com/media/l0MYt5jH6gkTWm8qo/giphy.gif',
-            'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif'
-        ]
-    ];
-    
-    $search_lower = strtolower($search);
-    $results = [];
-    
-    foreach ($gifs as $key => $gif_list) {
-        if (strpos($key, $search_lower) !== false || $search_lower === 'funny' || $search_lower === '') {
-            $results = array_merge($results, $gif_list);
-        }
-    }
-    
-    if (empty($results)) {
-        $results = $gifs['funny'];
-    }
-    
-    $results = array_unique($results);
-    shuffle($results);
-    echo json_encode(array_slice($results, 0, 15));
     exit;
 }
 ?>
@@ -508,7 +489,7 @@ if (isset($_GET['get_gifs'])) {
             background-size: 400% 400%;
         }
         
-        .auth-screen, .chat-app, .settings-panel, .admin-panel {
+        .auth-screen, .chat-app, .settings-panel {
             position: relative;
             z-index: 10;
         }
@@ -663,7 +644,6 @@ if (isset($_GET['get_gifs'])) {
         .input-group:nth-child(1) { animation-delay: 0.1s; }
         .input-group:nth-child(2) { animation-delay: 0.2s; }
         .input-group:nth-child(3) { animation-delay: 0.3s; }
-        .input-group:nth-child(4) { animation-delay: 0.4s; }
         
         @keyframes fadeInUp {
             from {
@@ -925,10 +905,10 @@ if (isset($_GET['get_gifs'])) {
         .current-user {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             background: rgba(255,255,255,0.2);
-            padding: 10px 20px;
-            border-radius: 30px;
+            padding: 8px 20px 8px 10px;
+            border-radius: 40px;
             font-weight: 600;
             font-size: 16px;
             backdrop-filter: blur(5px);
@@ -939,6 +919,38 @@ if (isset($_GET['get_gifs'])) {
         .current-user:hover {
             transform: scale(1.05);
             background: rgba(255,255,255,0.3);
+        }
+        
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .avatar-btn {
+            width: 45px;
+            height: 45px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-appearance: none;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .avatar-btn:hover {
+            transform: rotate(360deg) scale(1.1);
+            background: rgba(255,255,255,0.3);
+            box-shadow: 0 0 30px rgba(255,255,255,0.3);
         }
         
         .creator-badge {
@@ -1024,38 +1036,6 @@ if (isset($_GET['get_gifs'])) {
             border-color: #ff4444;
         }
         
-        .admin-panel-btn {
-            padding: 10px 22px;
-            background: linear-gradient(45deg, rgba(255,215,0,0.3), rgba(255,165,0,0.3));
-            color: white;
-            border: 1px solid rgba(255,215,0,0.5);
-            border-radius: 30px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            -webkit-appearance: none;
-            backdrop-filter: blur(5px);
-            display: none;
-        }
-        
-        .admin-panel-btn:hover {
-            transform: translateY(-5px) scale(1.05);
-            background: linear-gradient(45deg, rgba(255,215,0,0.5), rgba(255,165,0,0.5));
-            box-shadow: 0 10px 30px rgba(255,215,0,0.4);
-            border-color: #ffd700;
-        }
-        
-        .admin-panel-btn.show {
-            display: block;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        
         .messages-container {
             flex: 1;
             overflow-y: auto;
@@ -1076,6 +1056,8 @@ if (isset($_GET['get_gifs'])) {
             position: relative;
             transition: all 0.3s ease;
             border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
         }
         
         @keyframes messageAppear {
@@ -1145,14 +1127,27 @@ if (isset($_GET['get_gifs'])) {
             border-bottom-left-radius: 5px;
         }
         
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .message-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
         .message-sender {
             display: flex;
             align-items: center;
             gap: 5px;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 8px;
-            opacity: 0.9;
             flex-wrap: wrap;
         }
         
@@ -1223,6 +1218,7 @@ if (isset($_GET['get_gifs'])) {
             margin-bottom: 8px;
             line-height: 1.5;
             font-size: 16px;
+            word-break: break-word;
         }
         
         .message-content img {
@@ -1234,7 +1230,7 @@ if (isset($_GET['get_gifs'])) {
         }
         
         .message-content img:hover {
-            transform: scale(1.05) rotate(2deg);
+            transform: scale(1.05) rotate(1deg);
             box-shadow: 0 15px 30px rgba(0,0,0,0.3);
         }
         
@@ -1263,7 +1259,7 @@ if (isset($_GET['get_gifs'])) {
             backdrop-filter: blur(5px);
         }
         
-        .chat-input-area input {
+        .chat-input-area input[type="text"] {
             flex: 1;
             min-width: 200px;
             padding: 16px 22px;
@@ -1277,16 +1273,43 @@ if (isset($_GET['get_gifs'])) {
             border: 1px solid rgba(255,255,255,0.2);
         }
         
-        .chat-input-area input::placeholder {
+        .chat-input-area input[type="text"]::placeholder {
             color: rgba(255,255,255,0.5);
         }
         
-        .chat-input-area input:focus {
+        .chat-input-area input[type="text"]:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
             transform: translateY(-3px) scale(1.02);
             background: rgba(255,255,255,0.25);
+        }
+        
+        .chat-input-area input[type="file"] {
+            display: none;
+        }
+        
+        .file-upload-btn {
+            width: 55px;
+            height: 55px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 24px;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-appearance: none;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .file-upload-btn:hover {
+            transform: rotate(360deg) scale(1.1);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
         }
         
         .action-btn {
@@ -1307,38 +1330,47 @@ if (isset($_GET['get_gifs'])) {
             border: 1px solid rgba(255,255,255,0.2);
         }
         
+        body.purple .file-upload-btn,
         body.purple .action-btn {
             background: linear-gradient(45deg, #9b59b6, #8e44ad);
         }
         
+        body.pink .file-upload-btn,
         body.pink .action-btn {
             background: linear-gradient(45deg, #ff7676, #ff9f9f);
         }
         
+        body.gray .file-upload-btn,
         body.gray .action-btn {
             background: linear-gradient(45deg, #34495e, #2c3e50);
         }
         
+        body.green .file-upload-btn,
         body.green .action-btn {
             background: linear-gradient(45deg, #27ae60, #229954);
         }
         
+        body.blue .file-upload-btn,
         body.blue .action-btn {
             background: linear-gradient(45deg, #3498db, #2980b9);
         }
         
+        body.orange .file-upload-btn,
         body.orange .action-btn {
             background: linear-gradient(45deg, #ff8c42, #ff6b6b);
         }
         
+        body.black .file-upload-btn,
         body.black .action-btn {
             background: linear-gradient(45deg, #434343, #000000);
         }
         
+        body.teal .file-upload-btn,
         body.teal .action-btn {
             background: linear-gradient(45deg, #20b2aa, #11998e);
         }
         
+        .file-upload-btn:hover,
         .action-btn:hover {
             transform: rotate(360deg) scale(1.1);
             box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
@@ -1400,71 +1432,82 @@ if (isset($_GET['get_gifs'])) {
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
-        .gif-search {
+        .avatar-upload-panel {
             position: absolute;
             bottom: 100px;
-            left: 25px;
-            right: 25px;
-            border-radius: 25px;
-            padding: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 30px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
             display: none;
-            z-index: 100;
-            max-height: 400px;
-            overflow-y: auto;
-            animation: slideUp 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            background: rgba(0,0,0,0.3);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        .gif-search.show {
-            display: block;
-        }
-        
-        .gif-search input {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid transparent;
-            border-radius: 20px;
-            margin-bottom: 20px;
-            font-size: 16px;
-            transition: all 0.3s;
-            background: rgba(255,255,255,0.15);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        .gif-search input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
-            background: rgba(255,255,255,0.25);
-        }
-        
-        .gif-results {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            flex-direction: column;
+            align-items: center;
             gap: 15px;
+            z-index: 100;
+            animation: slideUp 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.2);
+            width: 300px;
         }
         
-        .gif-item {
-            width: 100%;
-            aspect-ratio: 1;
+        .avatar-upload-panel.show {
+            display: flex;
+        }
+        
+        .avatar-upload-panel h3 {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .avatar-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
             object-fit: cover;
-            border-radius: 15px;
+            border: 3px solid #667eea;
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+        }
+        
+        .avatar-upload-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            width: 100%;
         }
         
-        .gif-item:hover {
-            transform: scale(1.1) rotate(5deg);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
-            border-color: #667eea;
+        .avatar-upload-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
         }
         
-        .settings-panel, .admin-panel {
+        .avatar-cancel-btn {
+            background: rgba(255,68,68,0.3);
+            color: white;
+            border: 1px solid rgba(255,68,68,0.5);
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        .avatar-cancel-btn:hover {
+            background: rgba(255,68,68,0.5);
+            transform: scale(1.05);
+        }
+        
+        .settings-panel {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -1482,12 +1525,6 @@ if (isset($_GET['get_gifs'])) {
             border: 1px solid rgba(255,255,255,0.2);
         }
         
-        .admin-panel {
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-        
         @keyframes modalPop {
             0% {
                 opacity: 0;
@@ -1502,13 +1539,11 @@ if (isset($_GET['get_gifs'])) {
             }
         }
         
-        .settings-panel.show,
-        .admin-panel.show {
+        .settings-panel.show {
             display: block;
         }
         
-        .settings-panel h3,
-        .admin-panel h3 {
+        .settings-panel h3 {
             margin-bottom: 25px;
             font-size: 32px;
             text-align: center;
@@ -1604,94 +1639,30 @@ if (isset($_GET['get_gifs'])) {
             box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
         }
         
-        .user-list {
-            margin: 20px 0;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        
-        .user-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 15px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.3s ease;
-            border-radius: 10px;
-        }
-        
-        .user-item:hover {
-            background: rgba(255,255,255,0.1);
-            transform: translateX(5px);
-        }
-        
-        .user-info-admin {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .user-name {
-            font-weight: 600;
+        .ban-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,68,68,0.9);
+            backdrop-filter: blur(10px);
             color: white;
-        }
-        
-        .user-login {
-            font-size: 12px;
-            opacity: 0.7;
-            color: rgba(255,255,255,0.7);
-        }
-        
-        .admin-actions {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        
-        .ban-input {
-            display: flex;
-            gap: 5px;
-            align-items: center;
-        }
-        
-        .ban-input input {
-            width: 70px;
-            padding: 8px;
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-weight: 600;
+            animation: slideInRight 0.5s ease;
+            z-index: 2000;
             border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
-            color: white;
         }
         
-        .ban-input button {
-            padding: 8px 15px;
-            border: none;
-            border-radius: 8px;
-            background: linear-gradient(45deg, #ff4444, #ff6b6b);
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-        
-        .ban-input button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(255,68,68,0.4);
-        }
-        
-        .loading-gif {
-            text-align: center;
-            padding: 30px;
-            opacity: 0.7;
-            color: white;
-        }
-        
-        .no-gifs {
-            text-align: center;
-            padding: 30px;
-            opacity: 0.7;
-            grid-column: span 3;
-            color: white;
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
         
         ::-webkit-scrollbar {
@@ -1718,8 +1689,9 @@ if (isset($_GET['get_gifs'])) {
                 bottom: 90px;
             }
             
-            .gif-results {
-                grid-template-columns: repeat(2, 1fr);
+            .avatar-upload-panel {
+                width: 250px;
+                bottom: 90px;
             }
             
             .message {
@@ -1728,16 +1700,6 @@ if (isset($_GET['get_gifs'])) {
             
             .settings-theme-buttons {
                 grid-template-columns: 1fr;
-            }
-            
-            .user-item {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .admin-actions {
-                flex-wrap: wrap;
-                justify-content: center;
             }
         }
         
@@ -1755,22 +1717,22 @@ if (isset($_GET['get_gifs'])) {
             }
             
             .current-user {
-                padding: 8px 15px;
+                padding: 5px 15px 5px 5px;
                 font-size: 14px;
             }
             
-            .settings-btn, .action-btn {
-                width: 50px;
-                height: 50px;
-                font-size: 24px;
+            .user-avatar {
+                width: 30px;
+                height: 30px;
+            }
+            
+            .avatar-btn, .settings-btn, .file-upload-btn, .action-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 22px;
             }
             
             .logout-btn {
-                padding: 8px 18px;
-                font-size: 14px;
-            }
-            
-            .admin-panel-btn {
                 padding: 8px 15px;
                 font-size: 14px;
             }
@@ -1781,11 +1743,16 @@ if (isset($_GET['get_gifs'])) {
                 font-size: 14px;
             }
             
+            .message-avatar {
+                width: 30px;
+                height: 30px;
+            }
+            
             .chat-input-area {
                 padding: 15px;
             }
             
-            .chat-input-area input {
+            .chat-input-area input[type="text"] {
                 padding: 14px 18px;
                 font-size: 15px;
             }
@@ -1799,6 +1766,16 @@ if (isset($_GET['get_gifs'])) {
             .emoji-item {
                 font-size: 24px;
                 padding: 6px;
+            }
+            
+            .avatar-upload-panel {
+                width: 220px;
+                padding: 15px;
+            }
+            
+            .avatar-preview {
+                width: 80px;
+                height: 80px;
             }
         }
     </style>
@@ -1853,7 +1830,7 @@ if (isset($_GET['get_gifs'])) {
             <h2>✨ Чат ✨</h2>
             <div class="user-info">
                 <span class="current-user" id="currentUser"></span>
-                <button class="admin-panel-btn" id="adminPanelBtn">👑 Управление</button>
+                <button class="avatar-btn" id="avatarBtn">🖼️</button>
                 <button class="settings-btn" id="settingsBtn">⚙️</button>
                 <button class="logout-btn" id="logoutBtn">Выйти</button>
             </div>
@@ -1923,16 +1900,18 @@ if (isset($_GET['get_gifs'])) {
                 <span class="emoji-item">💝</span>
             </div>
             
-            <div class="gif-search" id="gifSearch">
-                <input type="text" id="gifSearchInput" placeholder="Поиск гифок..." value="funny">
-                <div class="gif-results" id="gifResults">
-                    <div class="loading-gif">Загрузка гифок...</div>
-                </div>
+            <div class="avatar-upload-panel" id="avatarUploadPanel">
+                <h3>Загрузить аватар</h3>
+                <img src="" class="avatar-preview" id="avatarPreview" style="display: none;">
+                <input type="file" id="avatarFileInput" accept="image/*" style="display: none;">
+                <button class="avatar-upload-btn" id="selectAvatarBtn">Выбрать фото</button>
+                <button class="avatar-cancel-btn" id="cancelAvatarBtn">Отмена</button>
             </div>
             
             <div class="chat-input-area">
                 <button class="action-btn" id="emojiBtn">😊</button>
-                <button class="action-btn" id="gifBtn">GIF</button>
+                <input type="file" id="fileInput" accept="image/*">
+                <button class="file-upload-btn" id="fileUploadBtn" onclick="document.getElementById('fileInput').click()">📷</button>
                 <input type="text" id="messageInput" placeholder="Напишите сообщение...">
                 <button class="action-btn" id="sendMessageBtn">➤</button>
             </div>
@@ -1963,22 +1942,14 @@ if (isset($_GET['get_gifs'])) {
         </div>
         <button class="settings-close" id="settingsClose">Закрыть</button>
     </div>
-    
-    <div class="admin-panel" id="adminPanel">
-        <h3>👑 Админ панель</h3>
-        <div class="user-list" id="userList">
-            <div class="loading-gif">Загрузка пользователей...</div>
-        </div>
-        <button class="settings-close" id="adminPanelClose">Закрыть</button>
-    </div>
 
     <script>
         let currentUser = null;
         let currentName = null;
+        let currentAvatar = null;
         let currentTheme = 'purple';
         let lastMessageCount = 0;
         let isLoading = false;
-        let gifLoadTimeout = null;
         let starsEnabled = true;
         
         const MAIN_ADMIN = 'd0xmee';
@@ -2009,19 +1980,18 @@ if (isset($_GET['get_gifs'])) {
         const currentUserSpan = document.getElementById('currentUser');
         const logoutBtn = document.getElementById('logoutBtn');
         const settingsBtn = document.getElementById('settingsBtn');
-        const adminPanelBtn = document.getElementById('adminPanelBtn');
-        const adminPanel = document.getElementById('adminPanel');
-        const adminPanelClose = document.getElementById('adminPanelClose');
-        const userList = document.getElementById('userList');
+        const avatarBtn = document.getElementById('avatarBtn');
+        const avatarUploadPanel = document.getElementById('avatarUploadPanel');
+        const avatarFileInput = document.getElementById('avatarFileInput');
+        const selectAvatarBtn = document.getElementById('selectAvatarBtn');
+        const cancelAvatarBtn = document.getElementById('cancelAvatarBtn');
+        const avatarPreview = document.getElementById('avatarPreview');
         const messagesContainer = document.getElementById('messagesContainer');
         const messageInput = document.getElementById('messageInput');
         const sendMessageBtn = document.getElementById('sendMessageBtn');
         const emojiBtn = document.getElementById('emojiBtn');
         const emojiPanel = document.getElementById('emojiPanel');
-        const gifBtn = document.getElementById('gifBtn');
-        const gifSearch = document.getElementById('gifSearch');
-        const gifSearchInput = document.getElementById('gifSearchInput');
-        const gifResults = document.getElementById('gifResults');
+        const fileInput = document.getElementById('fileInput');
         const settingsPanel = document.getElementById('settingsPanel');
         const settingsClose = document.getElementById('settingsClose');
         const themeButtons = document.querySelectorAll('.settings-theme-btn');
@@ -2051,12 +2021,9 @@ if (isset($_GET['get_gifs'])) {
                 if (data.logged) {
                     currentUser = data.user;
                     currentName = data.name || data.user;
+                    currentAvatar = data.avatar || '';
                     
                     updateUserDisplay();
-                    
-                    if (isAdmin(currentUser)) {
-                        adminPanelBtn.classList.add('show');
-                    }
                     
                     authScreen.style.display = 'none';
                     chatApp.classList.add('show');
@@ -2069,8 +2036,10 @@ if (isset($_GET['get_gifs'])) {
         }
         
         function updateUserDisplay() {
-            let userDisplay = currentName;
-            userDisplay += ' ' + getUserBadge(currentUser);
+            let avatarHtml = currentAvatar ? 
+                `<img src="${currentAvatar}?t=${Date.now()}" class="user-avatar">` : 
+                '';
+            let userDisplay = avatarHtml + currentName + ' ' + getUserBadge(currentUser);
             currentUserSpan.innerHTML = userDisplay;
         }
         
@@ -2101,91 +2070,37 @@ if (isset($_GET['get_gifs'])) {
             }
         }
         
-        async function loadGifs(search = 'funny') {
-            try {
-                gifResults.innerHTML = '<div class="loading-gif">Загрузка гифок...</div>';
-                
-                let response = await fetch('?get_gifs=1&search=' + encodeURIComponent(search));
-                let gifs = await response.json();
-                
-                if (gifs && gifs.length > 0) {
-                    gifResults.innerHTML = '';
-                    gifs.forEach(url => {
-                        let img = document.createElement('img');
-                        img.src = url;
-                        img.className = 'gif-item';
-                        img.onclick = function() { selectGif(url); };
-                        img.onerror = function() { this.style.display = 'none'; };
-                        gifResults.appendChild(img);
-                    });
-                } else {
-                    gifResults.innerHTML = '<div class="no-gifs">😕 Гифки не найдены</div>';
-                }
-            } catch(e) {
-                gifResults.innerHTML = '<div class="no-gifs">❌ Ошибка загрузки</div>';
-            }
+        function showBanNotification() {
+            let notification = document.createElement('div');
+            notification.className = 'ban-notification';
+            notification.textContent = '⛔ Вы забанены на 1 минуту';
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
         }
         
-        async function loadUsers() {
-            try {
-                userList.innerHTML = '<div class="loading-gif">Загрузка пользователей...</div>';
-                
-                let response = await fetch('?get_users=1');
-                let users = await response.json();
-                
-                if (users && users.length > 0) {
-                    userList.innerHTML = '';
-                    users.forEach(user => {
-                        if (user.login === currentUser) return;
-                        
-                        let userDiv = document.createElement('div');
-                        userDiv.className = 'user-item';
-                        
-                        userDiv.innerHTML = `
-                            <div class="user-info-admin">
-                                <div>
-                                    <div class="user-name">${user.name}</div>
-                                    <div class="user-login">${user.login}</div>
-                                </div>
-                            </div>
-                            <div class="admin-actions">
-                                <div class="ban-input">
-                                    <input type="number" id="ban-${user.login}" min="1" max="1440" value="60" placeholder="мин">
-                                    <button onclick="banUser('${user.login}')">⛔ Бан</button>
-                                </div>
-                            </div>
-                        `;
-                        
-                        userList.appendChild(userDiv);
-                    });
-                } else {
-                    userList.innerHTML = '<div class="no-gifs">Нет пользователей</div>';
-                }
-            } catch(e) {
-                userList.innerHTML = '<div class="no-gifs">Ошибка загрузки</div>';
-            }
-        }
-        
-        window.banUser = async function(login) {
-            let minutes = document.getElementById('ban-' + login).value;
-            if (!minutes || minutes < 1) {
-                alert('Введите корректное количество минут');
-                return;
-            }
-            
+        async function uploadAvatar(file) {
             let formData = new FormData();
-            formData.append('ban_user', true);
-            formData.append('login', login);
-            formData.append('minutes', minutes);
+            formData.append('update_avatar', true);
+            formData.append('avatar', file);
             
             try {
                 let response = await fetch('', { method: 'POST', body: formData });
                 let result = await response.json();
                 if (result.success) {
-                    alert(`Пользователь ${login} забанен на ${minutes} минут`);
+                    currentAvatar = result.avatar;
+                    updateUserDisplay();
+                    avatarUploadPanel.classList.remove('show');
+                    avatarPreview.style.display = 'none';
+                    avatarPreview.src = '';
+                } else {
+                    alert(result.message || 'Ошибка загрузки');
                 }
-            } catch(e) {}
-        };
+            } catch(e) {
+                alert('Ошибка соединения');
+            }
+        }
         
         if (loginTab) {
             loginTab.onclick = function() {
@@ -2274,12 +2189,9 @@ if (isset($_GET['get_gifs'])) {
                     if (result.success) {
                         currentUser = login;
                         currentName = result.name;
+                        currentAvatar = result.avatar || '';
                         
                         updateUserDisplay();
-                        
-                        if (isAdmin(currentUser)) {
-                            adminPanelBtn.classList.add('show');
-                        }
                         
                         authScreen.style.display = 'none';
                         chatApp.classList.add('show');
@@ -2287,6 +2199,9 @@ if (isset($_GET['get_gifs'])) {
                         setInterval(loadMessages, 2000);
                     } else {
                         loginError.textContent = result.message;
+                        if (result.message.includes('забанены')) {
+                            showBanNotification();
+                        }
                     }
                 } catch(e) {
                     loginError.textContent = 'Ошибка соединения';
@@ -2303,10 +2218,52 @@ if (isset($_GET['get_gifs'])) {
                     chatApp.classList.remove('show');
                     authScreen.style.display = 'block';
                     lastMessageCount = 0;
-                    adminPanelBtn.classList.remove('show');
                 } catch(e) {}
             };
         }
+        
+        if (avatarBtn) {
+            avatarBtn.onclick = function() {
+                avatarUploadPanel.classList.toggle('show');
+                emojiPanel.classList.remove('show');
+            };
+        }
+        
+        if (selectAvatarBtn) {
+            selectAvatarBtn.onclick = function() {
+                avatarFileInput.click();
+            };
+        }
+        
+        if (avatarFileInput) {
+            avatarFileInput.onchange = function(e) {
+                let file = e.target.files[0];
+                if (file) {
+                    let reader = new FileReader();
+                    reader.onload = function(event) {
+                        avatarPreview.src = event.target.result;
+                        avatarPreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+        }
+        
+        if (cancelAvatarBtn) {
+            cancelAvatarBtn.onclick = function() {
+                avatarUploadPanel.classList.remove('show');
+                avatarPreview.style.display = 'none';
+                avatarPreview.src = '';
+                avatarFileInput.value = '';
+            };
+        }
+        
+        // Upload avatar when file is selected
+        avatarFileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                uploadAvatar(this.files[0]);
+            }
+        });
         
         async function loadMessages() {
             if (isLoading) return;
@@ -2327,6 +2284,13 @@ if (isset($_GET['get_gifs'])) {
                             div.className = 'message ' + (msg.from === currentName ? 'sent' : 'received');
                             div.dataset.index = index;
                             
+                            let header = document.createElement('div');
+                            header.className = 'message-header';
+                            
+                            let avatarHtml = msg.avatar ? 
+                                `<img src="${msg.avatar}?t=${Date.now()}" class="message-avatar">` : 
+                                '';
+                            
                             let sender = document.createElement('div');
                             sender.className = 'message-sender';
                             
@@ -2334,9 +2298,9 @@ if (isset($_GET['get_gifs'])) {
                             let badge = '';
                             
                             if (msg.role === 'admin') {
-                                if (msg.from === MAIN_ADMIN || msg.from === 'd0xmee') {
+                                if (msg.from_login === MAIN_ADMIN) {
                                     badge = '<span class="creator-badge-small">👑 god</span>';
-                                } else if (msg.from === SECOND_ADMIN || msg.from === 'xvii' || msg.from === 'Королевский') {
+                                } else if (msg.from_login === SECOND_ADMIN) {
                                     badge = '<span class="admin-badge-small">xvii 👑</span>';
                                 } else {
                                     badge = '<span class="admin-badge-small">👑 АДМИН</span>';
@@ -2344,6 +2308,9 @@ if (isset($_GET['get_gifs'])) {
                             }
                             
                             sender.innerHTML = senderText + ' ' + badge;
+                            
+                            header.innerHTML = avatarHtml;
+                            header.appendChild(sender);
                             
                             if (isAdmin(currentUser)) {
                                 let deleteBtn = document.createElement('button');
@@ -2359,7 +2326,7 @@ if (isset($_GET['get_gifs'])) {
                             let content = document.createElement('div');
                             content.className = 'message-content';
                             
-                            if (msg.type === 'gif' || (msg.message && msg.message.includes('giphy.com'))) {
+                            if (msg.type === 'image') {
                                 let img = document.createElement('img');
                                 img.src = msg.message;
                                 img.style.maxWidth = '100%';
@@ -2379,7 +2346,7 @@ if (isset($_GET['get_gifs'])) {
                             date.className = 'message-date';
                             date.textContent = msg.date;
                             
-                            div.appendChild(sender);
+                            div.appendChild(header);
                             div.appendChild(content);
                             div.appendChild(time);
                             div.appendChild(date);
@@ -2445,6 +2412,13 @@ if (isset($_GET['get_gifs'])) {
                         div.className = 'message ' + (msg.from === currentName ? 'sent' : 'received');
                         div.dataset.index = index;
                         
+                        let header = document.createElement('div');
+                        header.className = 'message-header';
+                        
+                        let avatarHtml = msg.avatar ? 
+                            `<img src="${msg.avatar}?t=${Date.now()}" class="message-avatar">` : 
+                            '';
+                        
                         let sender = document.createElement('div');
                         sender.className = 'message-sender';
                         
@@ -2452,9 +2426,9 @@ if (isset($_GET['get_gifs'])) {
                         let badge = '';
                         
                         if (msg.role === 'admin') {
-                            if (msg.from === MAIN_ADMIN || msg.from === 'd0xmee') {
+                            if (msg.from_login === MAIN_ADMIN) {
                                 badge = '<span class="creator-badge-small">👑 god</span>';
-                            } else if (msg.from === SECOND_ADMIN || msg.from === 'xvii' || msg.from === 'Королевский') {
+                            } else if (msg.from_login === SECOND_ADMIN) {
                                 badge = '<span class="admin-badge-small">xvii 👑</span>';
                             } else {
                                 badge = '<span class="admin-badge-small">👑 АДМИН</span>';
@@ -2462,6 +2436,9 @@ if (isset($_GET['get_gifs'])) {
                         }
                         
                         sender.innerHTML = senderText + ' ' + badge;
+                        
+                        header.innerHTML = avatarHtml;
+                        header.appendChild(sender);
                         
                         if (isAdmin(currentUser)) {
                             let deleteBtn = document.createElement('button');
@@ -2477,7 +2454,7 @@ if (isset($_GET['get_gifs'])) {
                         let contentDiv = document.createElement('div');
                         contentDiv.className = 'message-content';
                         
-                        if (msg.type === 'gif' || (msg.message && msg.message.includes('giphy.com'))) {
+                        if (msg.type === 'image') {
                             let img = document.createElement('img');
                             img.src = msg.message;
                             img.style.maxWidth = '100%';
@@ -2497,7 +2474,7 @@ if (isset($_GET['get_gifs'])) {
                         date.className = 'message-date';
                         date.textContent = msg.date;
                         
-                        div.appendChild(sender);
+                        div.appendChild(header);
                         div.appendChild(contentDiv);
                         div.appendChild(time);
                         div.appendChild(date);
@@ -2507,6 +2484,8 @@ if (isset($_GET['get_gifs'])) {
                     lastMessageCount = result.messages.length;
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                     if (!content) messageInput.value = '';
+                } else if (result.message && result.message.includes('забанены')) {
+                    showBanNotification();
                 }
             } catch(e) {}
         }
@@ -2529,17 +2508,7 @@ if (isset($_GET['get_gifs'])) {
         if (emojiBtn) {
             emojiBtn.onclick = function() {
                 emojiPanel.classList.toggle('show');
-                gifSearch.classList.remove('show');
-            };
-        }
-        
-        if (gifBtn) {
-            gifBtn.onclick = function() {
-                gifSearch.classList.toggle('show');
-                emojiPanel.classList.remove('show');
-                if (gifSearch.classList.contains('show')) {
-                    loadGifs(gifSearchInput.value || 'funny');
-                }
+                avatarUploadPanel.classList.remove('show');
             };
         }
         
@@ -2550,55 +2519,39 @@ if (isset($_GET['get_gifs'])) {
             };
         });
         
-        if (gifSearchInput) {
-            gifSearchInput.oninput = function() {
-                if (gifLoadTimeout) {
-                    clearTimeout(gifLoadTimeout);
+        if (fileInput) {
+            fileInput.onchange = function(e) {
+                let file = e.target.files[0];
+                if (file) {
+                    let reader = new FileReader();
+                    reader.onload = function(event) {
+                        sendMessage('image', event.target.result);
+                    };
+                    reader.readAsDataURL(file);
                 }
-                gifLoadTimeout = setTimeout(() => {
-                    let search = this.value.trim() || 'funny';
-                    loadGifs(search);
-                }, 500);
+                fileInput.value = '';
             };
         }
         
-        function selectGif(url) {
-            sendMessage('gif', url);
-            gifSearch.classList.remove('show');
-        }
-        
-        window.selectGif = selectGif;
-        
         document.addEventListener('click', function(e) {
-            if (emojiBtn && !emojiBtn.contains(e.target) && emojiPanel && !emojiPanel.contains(e.target) && 
-                gifBtn && !gifBtn.contains(e.target) && gifSearch && !gifSearch.contains(e.target)) {
+            if (avatarBtn && !avatarBtn.contains(e.target) && avatarUploadPanel && !avatarUploadPanel.contains(e.target) &&
+                emojiBtn && !emojiBtn.contains(e.target) && emojiPanel && !emojiPanel.contains(e.target)) {
+                avatarUploadPanel.classList.remove('show');
                 emojiPanel.classList.remove('show');
-                gifSearch.classList.remove('show');
             }
         });
         
         if (settingsBtn) {
             settingsBtn.onclick = function() {
                 settingsPanel.classList.add('show');
+                avatarUploadPanel.classList.remove('show');
+                emojiPanel.classList.remove('show');
             };
         }
         
         if (settingsClose) {
             settingsClose.onclick = function() {
                 settingsPanel.classList.remove('show');
-            };
-        }
-        
-        if (adminPanelBtn) {
-            adminPanelBtn.onclick = function() {
-                adminPanel.classList.add('show');
-                loadUsers();
-            };
-        }
-        
-        if (adminPanelClose) {
-            adminPanelClose.onclick = function() {
-                adminPanel.classList.remove('show');
             };
         }
         
@@ -2618,9 +2571,6 @@ if (isset($_GET['get_gifs'])) {
         document.addEventListener('click', function(e) {
             if (settingsPanel && e.target === settingsPanel) {
                 settingsPanel.classList.remove('show');
-            }
-            if (adminPanel && e.target === adminPanel) {
-                adminPanel.classList.remove('show');
             }
         });
     </script>
