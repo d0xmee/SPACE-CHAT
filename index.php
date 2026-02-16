@@ -4,41 +4,18 @@ header('Content-Type: text/html; charset=utf-8');
 
 $users_file = 'users.txt';
 $messages_file = 'messages.txt';
-$bans_file = 'bans.txt';
+$reactions_file = 'reactions.txt';
 $avatar_dir = 'avatars/';
 
 if (!file_exists($avatar_dir)) {
     mkdir($avatar_dir, 0777, true);
 }
 
-$MAIN_ADMIN = 'd0xmee';
-$SECOND_ADMIN = 'xvii';
+$MAIN_ADMIN = 'Vadim';
 
 function isAdmin($login) {
-    global $MAIN_ADMIN, $SECOND_ADMIN;
-    return ($login === $MAIN_ADMIN || $login === $SECOND_ADMIN);
-}
-
-function isBanned($login) {
-    global $bans_file;
-    
-    if (file_exists($bans_file)) {
-        $content = file_get_contents($bans_file);
-        $lines = explode("\n", trim($content));
-        
-        foreach ($lines as $line) {
-            if (!empty($line)) {
-                $parts = explode('|', $line);
-                if (count($parts) >= 3 && trim($parts[0]) === $login) {
-                    $ban_time = intval($parts[2]);
-                    if (time() < $ban_time) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    return false;
+    global $MAIN_ADMIN;
+    return ($login === $MAIN_ADMIN);
 }
 
 if (isset($_POST['register'])) {
@@ -88,11 +65,6 @@ if (isset($_POST['register'])) {
 if (isset($_POST['login'])) {
     $login = trim($_POST['login']);
     $password = trim($_POST['password']);
-    
-    if (isBanned($login)) {
-        echo json_encode(['success' => false, 'message' => 'Вы забанены на 1 минуту']);
-        exit;
-    }
     
     $users = [];
     if (file_exists($users_file)) {
@@ -243,16 +215,12 @@ if (isset($_POST['send_message'])) {
         exit;
     }
     
-    if (isBanned($_SESSION['user'])) {
-        echo json_encode(['success' => false, 'message' => 'Вы забанены на 1 минуту']);
-        exit;
-    }
-    
     $from = isset($_SESSION['name']) ? $_SESSION['name'] : $_SESSION['user'];
     $from_login = $_SESSION['user'];
     $avatar = isset($_SESSION['avatar']) ? $_SESSION['avatar'] : '';
     $message = trim($_POST['message']);
     $type = isset($_POST['type']) ? $_POST['type'] : 'text';
+    $reply_to = isset($_POST['reply_to']) ? $_POST['reply_to'] : '';
     
     if (empty($message)) {
         echo json_encode(['success' => false, 'message' => 'Пустое сообщение']);
@@ -262,9 +230,77 @@ if (isset($_POST['send_message'])) {
     $time = date('H:i:s');
     $date = date('d.m.Y');
     $role = isAdmin($_SESSION['user']) ? 'admin' : 'user';
+    $message_id = uniqid();
     
-    $new_message = $from . '|' . $from_login . '|' . $avatar . '|' . $message . '|' . $time . '|' . $date . '|' . $type . '|' . $role . "\n";
+    $new_message = $message_id . '|' . $from . '|' . $from_login . '|' . $avatar . '|' . $message . '|' . $time . '|' . $date . '|' . $type . '|' . $role . '|' . $reply_to . "\n";
     file_put_contents($messages_file, $new_message, FILE_APPEND | LOCK_EX);
+    
+    $messages = getMessagesWithReactions();
+    
+    echo json_encode(['success' => true, 'messages' => $messages]);
+    exit;
+}
+
+if (isset($_POST['add_reaction'])) {
+    if (!isset($_SESSION['user'])) {
+        echo json_encode(['success' => false, 'message' => 'Не авторизован']);
+        exit;
+    }
+    
+    $message_id = $_POST['message_id'];
+    $reaction = $_POST['reaction'];
+    $user = $_SESSION['user'];
+    
+    $reactions = [];
+    if (file_exists($reactions_file)) {
+        $content = file_get_contents($reactions_file);
+        $lines = explode("\n", trim($content));
+        foreach ($lines as $line) {
+            if (!empty($line)) {
+                $parts = explode('|', $line);
+                $reactions[] = [
+                    'message_id' => $parts[0],
+                    'user' => $parts[1],
+                    'reaction' => $parts[2]
+                ];
+            }
+        }
+    }
+    
+    // Check if user already reacted with this emoji
+    $existing = false;
+    foreach ($reactions as $key => $r) {
+        if ($r['message_id'] === $message_id && $r['user'] === $user && $r['reaction'] === $reaction) {
+            unset($reactions[$key]);
+            $existing = true;
+            break;
+        }
+    }
+    
+    // If not existing, add new reaction
+    if (!$existing) {
+        $reactions[] = [
+            'message_id' => $message_id,
+            'user' => $user,
+            'reaction' => $reaction
+        ];
+    }
+    
+    // Save reactions
+    $lines = [];
+    foreach ($reactions as $r) {
+        $lines[] = $r['message_id'] . '|' . $r['user'] . '|' . $r['reaction'];
+    }
+    file_put_contents($reactions_file, implode("\n", $lines));
+    
+    $messages = getMessagesWithReactions();
+    
+    echo json_encode(['success' => true, 'messages' => $messages]);
+    exit;
+}
+
+function getMessagesWithReactions() {
+    global $messages_file, $reactions_file;
     
     $messages = [];
     
@@ -273,27 +309,59 @@ if (isset($_POST['send_message'])) {
         $lines = explode("\n", trim($content));
         $lines = array_filter($lines);
         
+        // Load reactions
+        $reactions = [];
+        if (file_exists($reactions_file)) {
+            $r_content = file_get_contents($reactions_file);
+            $r_lines = explode("\n", trim($r_content));
+            foreach ($r_lines as $r_line) {
+                if (!empty($r_line)) {
+                    $r_parts = explode('|', $r_line);
+                    $reactions[] = [
+                        'message_id' => $r_parts[0],
+                        'user' => $r_parts[1],
+                        'reaction' => $r_parts[2]
+                    ];
+                }
+            }
+        }
+        
         foreach ($lines as $line) {
             if (!empty($line)) {
                 $parts = explode('|', $line);
-                if (count($parts) >= 8) {
+                if (count($parts) >= 10) {
+                    $message_id = $parts[0];
+                    
+                    // Group reactions by emoji
+                    $message_reactions = [];
+                    foreach ($reactions as $r) {
+                        if ($r['message_id'] === $message_id) {
+                            if (!isset($message_reactions[$r['reaction']])) {
+                                $message_reactions[$r['reaction']] = [];
+                            }
+                            $message_reactions[$r['reaction']][] = $r['user'];
+                        }
+                    }
+                    
                     $messages[] = [
-                        'from' => trim($parts[0]),
-                        'from_login' => trim($parts[1]),
-                        'avatar' => trim($parts[2]),
-                        'message' => trim($parts[3]),
-                        'time' => trim($parts[4]),
-                        'date' => trim($parts[5]),
-                        'type' => trim($parts[6]),
-                        'role' => trim($parts[7])
+                        'id' => $message_id,
+                        'from' => trim($parts[1]),
+                        'from_login' => trim($parts[2]),
+                        'avatar' => trim($parts[3]),
+                        'message' => trim($parts[4]),
+                        'time' => trim($parts[5]),
+                        'date' => trim($parts[6]),
+                        'type' => trim($parts[7]),
+                        'role' => trim($parts[8]),
+                        'reply_to' => trim($parts[9]),
+                        'reactions' => $message_reactions
                     ];
                 }
             }
         }
     }
     
-    echo json_encode(['success' => true, 'messages' => $messages]);
-    exit;
+    return $messages;
 }
 
 if (isset($_GET['get_messages'])) {
@@ -302,31 +370,7 @@ if (isset($_GET['get_messages'])) {
         exit;
     }
     
-    $messages = [];
-    
-    if (file_exists($messages_file)) {
-        $content = file_get_contents($messages_file);
-        $lines = explode("\n", trim($content));
-        $lines = array_filter($lines);
-        
-        foreach ($lines as $line) {
-            if (!empty($line)) {
-                $parts = explode('|', $line);
-                if (count($parts) >= 8) {
-                    $messages[] = [
-                        'from' => trim($parts[0]),
-                        'from_login' => trim($parts[1]),
-                        'avatar' => trim($parts[2]),
-                        'message' => trim($parts[3]),
-                        'time' => trim($parts[4]),
-                        'date' => trim($parts[5]),
-                        'type' => trim($parts[6]),
-                        'role' => trim($parts[7])
-                    ];
-                }
-            }
-        }
-    }
+    $messages = getMessagesWithReactions();
     
     echo json_encode($messages);
     exit;
@@ -338,37 +382,25 @@ if (isset($_POST['delete_message'])) {
         exit;
     }
     
-    $message_index = intval($_POST['index']);
+    $message_id = $_POST['message_id'];
     
     if (file_exists($messages_file)) {
         $content = file_get_contents($messages_file);
-        $lines = explode("\n", trim($content));
+        $lines = explode("\n", $content);
+        $new_lines = [];
         
-        if (isset($lines[$message_index])) {
-            unset($lines[$message_index]);
-            file_put_contents($messages_file, implode("\n", array_values($lines)) . "\n");
-            echo json_encode(['success' => true]);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Сообщение не найдено']);
+        foreach ($lines as $line) {
+            if (!empty($line)) {
+                $parts = explode('|', $line);
+                if ($parts[0] !== $message_id) {
+                    $new_lines[] = $line;
+                }
+            }
         }
+        
+        file_put_contents($messages_file, implode("\n", $new_lines));
+        echo json_encode(['success' => true]);
     }
-    exit;
-}
-
-if (isset($_POST['ban_user'])) {
-    if (!isset($_SESSION['user']) || !isAdmin($_SESSION['user'])) {
-        echo json_encode(['success' => false, 'message' => 'Недостаточно прав']);
-        exit;
-    }
-    
-    $ban_login = $_POST['login'];
-    $minutes = 1;
-    $ban_until = time() + ($minutes * 60);
-    
-    $ban_line = $ban_login . '|' . $minutes . '|' . $ban_until . "\n";
-    file_put_contents($bans_file, $ban_line, FILE_APPEND | LOCK_EX);
-    
-    echo json_encode(['success' => true]);
     exit;
 }
 ?>
@@ -377,7 +409,7 @@ if (isset($_POST['ban_user'])) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Чат</title>
+    <title>Чат как в Telegram</title>
     <style>
         * {
             margin: 0;
@@ -387,7 +419,7 @@ if (isset($_POST['ban_user'])) {
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -953,7 +985,7 @@ if (isset($_POST['ban_user'])) {
             box-shadow: 0 0 30px rgba(255,255,255,0.3);
         }
         
-        .creator-badge {
+        .admin-badge {
             display: inline-flex;
             align-items: center;
             gap: 5px;
@@ -970,25 +1002,6 @@ if (isset($_POST['ban_user'])) {
         @keyframes goldGlow {
             0%, 100% { box-shadow: 0 0 10px rgba(255,215,0,0.5); }
             50% { box-shadow: 0 0 20px rgba(255,215,0,0.8); }
-        }
-        
-        .admin-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            margin-left: 8px;
-            background: linear-gradient(45deg, #9b59b6, #8e44ad);
-            color: white;
-            font-weight: bold;
-            animation: purpleGlow 2s ease-in-out infinite;
-        }
-        
-        @keyframes purpleGlow {
-            0%, 100% { box-shadow: 0 0 10px rgba(155,89,182,0.5); }
-            50% { box-shadow: 0 0 20px rgba(155,89,182,0.8); }
         }
         
         .settings-btn {
@@ -1048,16 +1061,29 @@ if (isset($_POST['ban_user'])) {
         
         .message {
             max-width: 70%;
-            padding: 15px 20px;
-            border-radius: 20px;
-            animation: messageAppear 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            padding: 12px 16px;
+            border-radius: 18px;
             font-size: 16px;
             word-wrap: break-word;
             position: relative;
             transition: all 0.3s ease;
             border: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            flex-direction: column;
+            animation: messageAppear 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        .message.sent {
+            align-self: flex-end;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message.received {
+            align-self: flex-start;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(5px);
+            color: white;
+            border-bottom-left-radius: 4px;
         }
         
         @keyframes messageAppear {
@@ -1075,68 +1101,44 @@ if (isset($_POST['ban_user'])) {
         }
         
         .message:hover {
-            transform: scale(1.02) translateY(-2px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
-            border-color: rgba(255,255,255,0.2);
+            transform: scale(1.01) translateY(-1px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         
-        .message.sent {
+        .reply-indicator {
+            font-size: 13px;
+            padding: 6px 10px;
+            margin-bottom: 6px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            color: rgba(255,255,255,0.9);
+            border-left: 3px solid #667eea;
+            max-width: 70%;
+        }
+        
+        .reply-indicator.sent {
             align-self: flex-end;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border-bottom-right-radius: 5px;
         }
         
-        body.purple .message.sent {
-            background: linear-gradient(45deg, #9b59b6, #8e44ad);
-        }
-        
-        body.pink .message.sent {
-            background: linear-gradient(45deg, #ff7676, #ff9f9f);
-        }
-        
-        body.gray .message.sent {
-            background: linear-gradient(45deg, #34495e, #2c3e50);
-        }
-        
-        body.green .message.sent {
-            background: linear-gradient(45deg, #27ae60, #229954);
-        }
-        
-        body.blue .message.sent {
-            background: linear-gradient(45deg, #3498db, #2980b9);
-        }
-        
-        body.orange .message.sent {
-            background: linear-gradient(45deg, #ff8c42, #ff6b6b);
-        }
-        
-        body.black .message.sent {
-            background: linear-gradient(45deg, #434343, #000000);
-        }
-        
-        body.teal .message.sent {
-            background: linear-gradient(45deg, #20b2aa, #11998e);
-        }
-        
-        .message.received {
+        .reply-indicator.received {
             align-self: flex-start;
-            background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(5px);
-            color: white;
-            border-bottom-left-radius: 5px;
+        }
+        
+        .reply-indicator span {
+            font-weight: bold;
+            color: #667eea;
         }
         
         .message-header {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 8px;
+            margin-bottom: 8px;
         }
         
         .message-avatar {
-            width: 35px;
-            height: 35px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid rgba(255,255,255,0.3);
@@ -1146,21 +1148,9 @@ if (isset($_POST['ban_user'])) {
             display: flex;
             align-items: center;
             gap: 5px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             flex-wrap: wrap;
-        }
-        
-        .creator-badge-small {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            background: linear-gradient(45deg, #ffd700, #ffa500);
-            color: #000;
-            font-weight: bold;
         }
         
         .admin-badge-small {
@@ -1170,8 +1160,8 @@ if (isset($_POST['ban_user'])) {
             padding: 2px 8px;
             border-radius: 12px;
             font-size: 11px;
-            background: linear-gradient(45deg, #9b59b6, #8e44ad);
-            color: white;
+            background: linear-gradient(45deg, #ffd700, #ffa500);
+            color: #000;
             font-weight: bold;
         }
         
@@ -1214,8 +1204,38 @@ if (isset($_POST['ban_user'])) {
             box-shadow: 0 0 20px rgba(255,68,68,0.5);
         }
         
+        .reply-btn {
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 10;
+        }
+        
+        .message:hover .reply-btn {
+            display: flex;
+            animation: deleteAppear 0.3s ease;
+        }
+        
+        .reply-btn:hover {
+            transform: scale(1.2) rotate(90deg);
+            background: #7d8eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+        
         .message-content {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             line-height: 1.5;
             font-size: 16px;
             word-break: break-word;
@@ -1230,22 +1250,91 @@ if (isset($_POST['ban_user'])) {
         }
         
         .message-content img:hover {
-            transform: scale(1.05) rotate(1deg);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+            transform: scale(1.02) rotate(1deg);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
         
         .message-time {
             font-size: 11px;
             text-align: right;
-            margin-top: 5px;
             opacity: 0.6;
+            margin-top: 4px;
         }
         
-        .message-date {
-            font-size: 10px;
-            text-align: right;
-            opacity: 0.4;
-            margin-top: 2px;
+        .reactions-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+            margin-bottom: 2px;
+        }
+        
+        .reaction {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 4px 8px;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .reaction:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+        
+        .reaction.active {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+        
+        .reaction-count {
+            font-size: 12px;
+            font-weight: bold;
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .reaction-picker {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 30px;
+            padding: 8px;
+            display: none;
+            gap: 5px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: popIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        .message:hover .reaction-picker {
+            display: flex;
+        }
+        
+        .reaction-picker span {
+            font-size: 20px;
+            padding: 5px;
+            cursor: pointer;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .reaction-picker span:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.2);
         }
         
         .chat-input-area {
@@ -1257,6 +1346,56 @@ if (isset($_POST['ban_user'])) {
             flex-wrap: wrap;
             background: rgba(0,0,0,0.2);
             backdrop-filter: blur(5px);
+            position: relative;
+        }
+        
+        .reply-preview {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px 20px 0 0;
+            padding: 10px 20px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            color: white;
+            animation: slideUp 0.3s ease;
+        }
+        
+        .reply-preview.show {
+            display: flex;
+        }
+        
+        .reply-preview-content {
+            flex: 1;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .reply-preview-content strong {
+            color: #667eea;
+        }
+        
+        .cancel-reply-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+        
+        .cancel-reply-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
         }
         
         .chat-input-area input[type="text"] {
@@ -1639,32 +1778,6 @@ if (isset($_POST['ban_user'])) {
             box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
         }
         
-        .ban-notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(255,68,68,0.9);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 50px;
-            font-weight: 600;
-            animation: slideInRight 0.5s ease;
-            z-index: 2000;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        
         ::-webkit-scrollbar {
             width: 10px;
         }
@@ -1739,13 +1852,13 @@ if (isset($_POST['ban_user'])) {
             
             .message {
                 max-width: 90%;
-                padding: 12px 16px;
+                padding: 10px 12px;
                 font-size: 14px;
             }
             
             .message-avatar {
-                width: 30px;
-                height: 30px;
+                width: 25px;
+                height: 25px;
             }
             
             .chat-input-area {
@@ -1839,6 +1952,11 @@ if (isset($_POST['ban_user'])) {
         <div class="messages-container" id="messagesContainer"></div>
         
         <div style="position: relative;">
+            <div class="reply-preview" id="replyPreview">
+                <div class="reply-preview-content" id="replyPreviewContent"></div>
+                <button class="cancel-reply-btn" id="cancelReplyBtn">✕</button>
+            </div>
+            
             <div class="emoji-panel" id="emojiPanel">
                 <span class="emoji-item">😊</span>
                 <span class="emoji-item">😂</span>
@@ -1951,9 +2069,11 @@ if (isset($_POST['ban_user'])) {
         let lastMessageCount = 0;
         let isLoading = false;
         let starsEnabled = true;
+        let replyingTo = null;
+        let allMessages = [];
         
-        const MAIN_ADMIN = 'd0xmee';
-        const SECOND_ADMIN = 'xvii';
+        const MAIN_ADMIN = 'Vadim';
+        const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
         
         const body = document.getElementById('body');
         const authScreen = document.getElementById('authScreen');
@@ -1996,19 +2116,18 @@ if (isset($_POST['ban_user'])) {
         const settingsClose = document.getElementById('settingsClose');
         const themeButtons = document.querySelectorAll('.settings-theme-btn');
         const starsCheckbox = document.getElementById('starsCheckbox');
+        const replyPreview = document.getElementById('replyPreview');
+        const replyPreviewContent = document.getElementById('replyPreviewContent');
+        const cancelReplyBtn = document.getElementById('cancelReplyBtn');
         
         checkSession();
         
         function isAdmin(login) {
-            return login === MAIN_ADMIN || login === SECOND_ADMIN;
+            return login === MAIN_ADMIN;
         }
         
         function getUserBadge(login) {
             if (login === MAIN_ADMIN) {
-                return '<span class="creator-badge">👑 god</span>';
-            } else if (login === SECOND_ADMIN) {
-                return '<span class="admin-badge">xvii 👑</span>';
-            } else if (isAdmin(login)) {
                 return '<span class="admin-badge">👑 АДМИН</span>';
             }
             return '';
@@ -2070,16 +2189,6 @@ if (isset($_POST['ban_user'])) {
             }
         }
         
-        function showBanNotification() {
-            let notification = document.createElement('div');
-            notification.className = 'ban-notification';
-            notification.textContent = '⛔ Вы забанены на 1 минуту';
-            document.body.appendChild(notification);
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        }
-        
         async function uploadAvatar(file) {
             let formData = new FormData();
             formData.append('update_avatar', true);
@@ -2100,6 +2209,38 @@ if (isset($_POST['ban_user'])) {
             } catch(e) {
                 alert('Ошибка соединения');
             }
+        }
+        
+        function setReplyTo(messageId, messageText, senderName) {
+            replyingTo = messageId;
+            replyPreviewContent.innerHTML = `<strong>Ответ ${senderName}:</strong> ${messageText.substring(0, 50)}${messageText.length > 50 ? '...' : ''}`;
+            replyPreview.classList.add('show');
+            messageInput.focus();
+        }
+        
+        function cancelReply() {
+            replyingTo = null;
+            replyPreview.classList.remove('show');
+        }
+        
+        async function addReaction(messageId, reaction) {
+            let formData = new FormData();
+            formData.append('add_reaction', true);
+            formData.append('message_id', messageId);
+            formData.append('reaction', reaction);
+            
+            try {
+                let response = await fetch('', { method: 'POST', body: formData });
+                let result = await response.json();
+                if (result.success && result.messages) {
+                    allMessages = result.messages;
+                    renderMessages();
+                }
+            } catch(e) {}
+        }
+        
+        function findMessageById(id) {
+            return allMessages.find(m => m.id === id);
         }
         
         if (loginTab) {
@@ -2199,9 +2340,6 @@ if (isset($_POST['ban_user'])) {
                         setInterval(loadMessages, 2000);
                     } else {
                         loginError.textContent = result.message;
-                        if (result.message.includes('забанены')) {
-                            showBanNotification();
-                        }
                     }
                 } catch(e) {
                     loginError.textContent = 'Ошибка соединения';
@@ -2218,6 +2356,8 @@ if (isset($_POST['ban_user'])) {
                     chatApp.classList.remove('show');
                     authScreen.style.display = 'block';
                     lastMessageCount = 0;
+                    allMessages = [];
+                    cancelReply();
                 } catch(e) {}
             };
         }
@@ -2258,12 +2398,148 @@ if (isset($_POST['ban_user'])) {
             };
         }
         
-        // Upload avatar when file is selected
         avatarFileInput.addEventListener('change', function() {
             if (this.files && this.files[0]) {
                 uploadAvatar(this.files[0]);
             }
         });
+        
+        function renderMessages() {
+            messagesContainer.innerHTML = '';
+            
+            if (allMessages.length > 0) {
+                allMessages.forEach(function(msg) {
+                    // Reply indicator if message is a reply
+                    if (msg.reply_to) {
+                        let replyMsg = findMessageById(msg.reply_to);
+                        if (replyMsg) {
+                            let replyDiv = document.createElement('div');
+                            replyDiv.className = 'reply-indicator ' + (msg.from === currentName ? 'sent' : 'received');
+                            replyDiv.innerHTML = `<span>${replyMsg.from}</span>: ${replyMsg.message.substring(0, 30)}${replyMsg.message.length > 30 ? '...' : ''}`;
+                            messagesContainer.appendChild(replyDiv);
+                        }
+                    }
+                    
+                    let div = document.createElement('div');
+                    div.className = 'message ' + (msg.from === currentName ? 'sent' : 'received');
+                    div.dataset.id = msg.id;
+                    
+                    // Header with avatar and sender
+                    let header = document.createElement('div');
+                    header.className = 'message-header';
+                    
+                    let avatarHtml = msg.avatar ? 
+                        `<img src="${msg.avatar}?t=${Date.now()}" class="message-avatar">` : 
+                        '';
+                    
+                    let sender = document.createElement('div');
+                    sender.className = 'message-sender';
+                    
+                    let senderText = msg.from;
+                    let badge = '';
+                    
+                    if (msg.role === 'admin' && msg.from_login === MAIN_ADMIN) {
+                        badge = '<span class="admin-badge-small">👑 АДМИН</span>';
+                    }
+                    
+                    sender.innerHTML = senderText + ' ' + badge;
+                    
+                    header.innerHTML = avatarHtml;
+                    header.appendChild(sender);
+                    div.appendChild(header);
+                    
+                    // Delete button for admin
+                    if (isAdmin(currentUser)) {
+                        let deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'delete-btn';
+                        deleteBtn.innerHTML = '✕';
+                        deleteBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            deleteMessage(msg.id);
+                        };
+                        div.appendChild(deleteBtn);
+                    }
+                    
+                    // Reply button
+                    let replyBtn = document.createElement('button');
+                    replyBtn.className = 'reply-btn';
+                    replyBtn.innerHTML = '↩';
+                    replyBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        setReplyTo(msg.id, msg.message, msg.from);
+                    };
+                    div.appendChild(replyBtn);
+                    
+                    // Reaction picker
+                    let reactionPicker = document.createElement('div');
+                    reactionPicker.className = 'reaction-picker';
+                    REACTIONS.forEach(emoji => {
+                        let span = document.createElement('span');
+                        span.textContent = emoji;
+                        span.onclick = function(e) {
+                            e.stopPropagation();
+                            addReaction(msg.id, emoji);
+                        };
+                        reactionPicker.appendChild(span);
+                    });
+                    div.appendChild(reactionPicker);
+                    
+                    // Message content
+                    let contentDiv = document.createElement('div');
+                    contentDiv.className = 'message-content';
+                    
+                    if (msg.type === 'image') {
+                        let img = document.createElement('img');
+                        img.src = msg.message;
+                        img.style.maxWidth = '100%';
+                        img.style.maxHeight = '300px';
+                        img.style.borderRadius = '12px';
+                        img.onclick = function() { window.open(msg.message, '_blank'); };
+                        contentDiv.appendChild(img);
+                    } else {
+                        contentDiv.textContent = msg.message;
+                    }
+                    div.appendChild(contentDiv);
+                    
+                    // Reactions display
+                    if (msg.reactions && Object.keys(msg.reactions).length > 0) {
+                        let reactionsDiv = document.createElement('div');
+                        reactionsDiv.className = 'reactions-container';
+                        
+                        Object.entries(msg.reactions).forEach(([emoji, users]) => {
+                            let reaction = document.createElement('span');
+                            reaction.className = 'reaction' + (users.includes(currentUser) ? ' active' : '');
+                            reaction.innerHTML = `${emoji} <span class="reaction-count">${users.length}</span>`;
+                            reaction.onclick = function(e) {
+                                e.stopPropagation();
+                                addReaction(msg.id, emoji);
+                            };
+                            reactionsDiv.appendChild(reaction);
+                        });
+                        
+                        div.appendChild(reactionsDiv);
+                    }
+                    
+                    // Time
+                    let time = document.createElement('div');
+                    time.className = 'message-time';
+                    time.textContent = msg.time;
+                    div.appendChild(time);
+                    
+                    messagesContainer.appendChild(div);
+                });
+            } else {
+                let emptyDiv = document.createElement('div');
+                emptyDiv.style.textAlign = 'center';
+                emptyDiv.style.padding = '40px';
+                emptyDiv.style.opacity = '0.7';
+                emptyDiv.style.color = 'white';
+                emptyDiv.textContent = 'Нет сообщений. Напишите что-нибудь!';
+                messagesContainer.appendChild(emptyDiv);
+            }
+            
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
         
         async function loadMessages() {
             if (isLoading) return;
@@ -2273,112 +2549,22 @@ if (isset($_POST['ban_user'])) {
                 let response = await fetch('?get_messages=1');
                 let messages = await response.json();
                 
-                if (messages && messages.length !== lastMessageCount) {
-                    let shouldScroll = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
-                    
-                    messagesContainer.innerHTML = '';
-                    
-                    if (messages.length > 0) {
-                        messages.forEach(function(msg, index) {
-                            let div = document.createElement('div');
-                            div.className = 'message ' + (msg.from === currentName ? 'sent' : 'received');
-                            div.dataset.index = index;
-                            
-                            let header = document.createElement('div');
-                            header.className = 'message-header';
-                            
-                            let avatarHtml = msg.avatar ? 
-                                `<img src="${msg.avatar}?t=${Date.now()}" class="message-avatar">` : 
-                                '';
-                            
-                            let sender = document.createElement('div');
-                            sender.className = 'message-sender';
-                            
-                            let senderText = msg.from;
-                            let badge = '';
-                            
-                            if (msg.role === 'admin') {
-                                if (msg.from_login === MAIN_ADMIN) {
-                                    badge = '<span class="creator-badge-small">👑 god</span>';
-                                } else if (msg.from_login === SECOND_ADMIN) {
-                                    badge = '<span class="admin-badge-small">xvii 👑</span>';
-                                } else {
-                                    badge = '<span class="admin-badge-small">👑 АДМИН</span>';
-                                }
-                            }
-                            
-                            sender.innerHTML = senderText + ' ' + badge;
-                            
-                            header.innerHTML = avatarHtml;
-                            header.appendChild(sender);
-                            
-                            if (isAdmin(currentUser)) {
-                                let deleteBtn = document.createElement('button');
-                                deleteBtn.className = 'delete-btn';
-                                deleteBtn.innerHTML = '✕';
-                                deleteBtn.onclick = function(e) {
-                                    e.stopPropagation();
-                                    deleteMessage(index);
-                                };
-                                div.appendChild(deleteBtn);
-                            }
-                            
-                            let content = document.createElement('div');
-                            content.className = 'message-content';
-                            
-                            if (msg.type === 'image') {
-                                let img = document.createElement('img');
-                                img.src = msg.message;
-                                img.style.maxWidth = '100%';
-                                img.style.maxHeight = '300px';
-                                img.style.borderRadius = '12px';
-                                img.onclick = function() { window.open(msg.message, '_blank'); };
-                                content.appendChild(img);
-                            } else {
-                                content.textContent = msg.message;
-                            }
-                            
-                            let time = document.createElement('div');
-                            time.className = 'message-time';
-                            time.textContent = msg.time;
-                            
-                            let date = document.createElement('div');
-                            date.className = 'message-date';
-                            date.textContent = msg.date;
-                            
-                            div.appendChild(header);
-                            div.appendChild(content);
-                            div.appendChild(time);
-                            div.appendChild(date);
-                            messagesContainer.appendChild(div);
-                        });
-                    } else {
-                        let emptyDiv = document.createElement('div');
-                        emptyDiv.style.textAlign = 'center';
-                        emptyDiv.style.padding = '40px';
-                        emptyDiv.style.opacity = '0.7';
-                        emptyDiv.style.color = 'white';
-                        emptyDiv.textContent = 'Нет сообщений. Напишите что-нибудь!';
-                        messagesContainer.appendChild(emptyDiv);
-                    }
-                    
+                if (messages && JSON.stringify(messages) !== JSON.stringify(allMessages)) {
+                    allMessages = messages;
+                    renderMessages();
                     lastMessageCount = messages.length;
-                    
-                    if (shouldScroll) {
-                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                    }
                 }
             } catch(e) {} finally {
                 isLoading = false;
             }
         }
         
-        async function deleteMessage(index) {
+        async function deleteMessage(messageId) {
             if (!confirm('Удалить сообщение?')) return;
             
             let formData = new FormData();
             formData.append('delete_message', true);
-            formData.append('index', index);
+            formData.append('message_id', messageId);
             
             try {
                 let response = await fetch('', { method: 'POST', body: formData });
@@ -2399,93 +2585,20 @@ if (isset($_POST['ban_user'])) {
             formData.append('send_message', true);
             formData.append('message', text);
             formData.append('type', type);
+            if (replyingTo) {
+                formData.append('reply_to', replyingTo);
+            }
             
             try {
                 let response = await fetch('', { method: 'POST', body: formData });
                 let result = await response.json();
                 
                 if (result.success && result.messages) {
-                    messagesContainer.innerHTML = '';
-                    
-                    result.messages.forEach(function(msg, index) {
-                        let div = document.createElement('div');
-                        div.className = 'message ' + (msg.from === currentName ? 'sent' : 'received');
-                        div.dataset.index = index;
-                        
-                        let header = document.createElement('div');
-                        header.className = 'message-header';
-                        
-                        let avatarHtml = msg.avatar ? 
-                            `<img src="${msg.avatar}?t=${Date.now()}" class="message-avatar">` : 
-                            '';
-                        
-                        let sender = document.createElement('div');
-                        sender.className = 'message-sender';
-                        
-                        let senderText = msg.from;
-                        let badge = '';
-                        
-                        if (msg.role === 'admin') {
-                            if (msg.from_login === MAIN_ADMIN) {
-                                badge = '<span class="creator-badge-small">👑 god</span>';
-                            } else if (msg.from_login === SECOND_ADMIN) {
-                                badge = '<span class="admin-badge-small">xvii 👑</span>';
-                            } else {
-                                badge = '<span class="admin-badge-small">👑 АДМИН</span>';
-                            }
-                        }
-                        
-                        sender.innerHTML = senderText + ' ' + badge;
-                        
-                        header.innerHTML = avatarHtml;
-                        header.appendChild(sender);
-                        
-                        if (isAdmin(currentUser)) {
-                            let deleteBtn = document.createElement('button');
-                            deleteBtn.className = 'delete-btn';
-                            deleteBtn.innerHTML = '✕';
-                            deleteBtn.onclick = function(e) {
-                                e.stopPropagation();
-                                deleteMessage(index);
-                            };
-                            div.appendChild(deleteBtn);
-                        }
-                        
-                        let contentDiv = document.createElement('div');
-                        contentDiv.className = 'message-content';
-                        
-                        if (msg.type === 'image') {
-                            let img = document.createElement('img');
-                            img.src = msg.message;
-                            img.style.maxWidth = '100%';
-                            img.style.maxHeight = '300px';
-                            img.style.borderRadius = '12px';
-                            img.onclick = function() { window.open(msg.message, '_blank'); };
-                            contentDiv.appendChild(img);
-                        } else {
-                            contentDiv.textContent = msg.message;
-                        }
-                        
-                        let time = document.createElement('div');
-                        time.className = 'message-time';
-                        time.textContent = msg.time;
-                        
-                        let date = document.createElement('div');
-                        date.className = 'message-date';
-                        date.textContent = msg.date;
-                        
-                        div.appendChild(header);
-                        div.appendChild(contentDiv);
-                        div.appendChild(time);
-                        div.appendChild(date);
-                        messagesContainer.appendChild(div);
-                    });
-                    
+                    allMessages = result.messages;
+                    renderMessages();
                     lastMessageCount = result.messages.length;
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
                     if (!content) messageInput.value = '';
-                } else if (result.message && result.message.includes('забанены')) {
-                    showBanNotification();
+                    cancelReply();
                 }
             } catch(e) {}
         }
@@ -2531,6 +2644,10 @@ if (isset($_POST['ban_user'])) {
                 }
                 fileInput.value = '';
             };
+        }
+        
+        if (cancelReplyBtn) {
+            cancelReplyBtn.onclick = cancelReply;
         }
         
         document.addEventListener('click', function(e) {
