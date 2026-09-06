@@ -11,7 +11,7 @@ if (!file_exists($avatar_dir)) {
     mkdir($avatar_dir, 0777, true);
 }
 
-$MAIN_ADMIN = 'Vadim';
+$MAIN_ADMIN = 'noname';
 
 function isAdmin($login) {
     global $MAIN_ADMIN;
@@ -182,8 +182,7 @@ if (isset($_FILES['avatar']) && isset($_POST['update_avatar'])) {
     
     if (move_uploaded_file($file['tmp_name'], $filepath)) {
         $_SESSION['avatar'] = $filepath;
-        
-        // Update users file
+
         if (file_exists($users_file)) {
             $content = file_get_contents($users_file);
             $lines = explode("\n", $content);
@@ -276,8 +275,7 @@ if (isset($_POST['add_reaction'])) {
             break;
         }
     }
-    
-    // If not existing, add new reaction
+
     if (!$existing) {
         $reactions[] = [
             'message_id' => $message_id,
@@ -285,8 +283,7 @@ if (isset($_POST['add_reaction'])) {
             'reaction' => $reaction
         ];
     }
-    
-    // Save reactions
+
     $lines = [];
     foreach ($reactions as $r) {
         $lines[] = $r['message_id'] . '|' . $r['user'] . '|' . $r['reaction'];
@@ -309,7 +306,6 @@ function getMessagesWithReactions() {
         $lines = explode("\n", trim($content));
         $lines = array_filter($lines);
         
-        // Load reactions
         $reactions = [];
         if (file_exists($reactions_file)) {
             $r_content = file_get_contents($reactions_file);
@@ -332,7 +328,6 @@ function getMessagesWithReactions() {
                 if (count($parts) >= 10) {
                     $message_id = $parts[0];
                     
-                    // Group reactions by emoji
                     $message_reactions = [];
                     foreach ($reactions as $r) {
                         if ($r['message_id'] === $message_id) {
